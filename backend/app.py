@@ -1,65 +1,41 @@
-from flask import Blueprint, render_template, request, flash, url_for, redirect
-from flask_login import login_required, current_user, login_user,logout_user
-from werkzeug.utils import secure_filename
 import os
-from backend.class_pred import classify_image
+import pandas as pd
+import numpy as np
+from flask import Blueprint, render_template, request, flash, url_for, redirect, send_file
+from flask_login import login_required, current_user, login_user, logout_user
+from werkzeug.utils import secure_filename
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
 from backend.forms import LoginForm, RegisterForm
-from backend.obj_count import detect_objects_and_save
-from backend.scores import SCORES
 from backend import db
 from backend.credentials import User
 
+# ----------------- Config -----------------
 app_blueprint = Blueprint('app_blueprint', __name__)
 UPLOAD_FOLDER = os.path.join("backend", "static", "uploads")
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+ALLOWED_EXTENSIONS = {'csv', 'xlsx', 'xls'}
 
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
-def allowed_file(fn): return '.' in fn and fn.rsplit('.',1)[1].lower() in ALLOWED_EXTENSIONS
+# ----------------- Helpers -----------------
+def allowed_file(filename):
+    """Check allowed file extensions."""
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-@app_blueprint.route('/analyze', methods=['POST'])
-@login_required
-def analyze():
-    if 'images' not in request.files:
-        flash("No file part", 'danger')
-        return redirect(url_for('app_blueprint.upload_page'))
+def create_pdf_from_df(df, pdf_path):
+    """Convert DataFrame to PDF file."""
+    c = canvas.Canvas(pdf_path, pagesize=letter)
+    width, height = letter
+    text = c.beginText(40, height - 40)
+    text.setFont("Helvetica", 10)
 
-    files = request.files.getlist('images')
-    results = []
+    for line in df.to_string(index=False).split('\n'):
+        text.textLine(line)
 
-    for file in files:
-        if not file or file.filename == '' or not allowed_file(file.filename):
-            continue
+    c.drawText(text)
+    c.showPage()
+    c.save()
 
-        fn = secure_filename(file.filename)
-        in_path  = os.path.join(UPLOAD_FOLDER, "in_"  + fn)
-        out_path = os.path.join(UPLOAD_FOLDER, "out_" + fn)
-        file.save(in_path)
-
-        # 1) Classify + annotate label
-        predicted_class, confidence = classify_image(in_path, out_path)
-
-        # 2) Detect objects + draw boxes
-        object_count = detect_objects_and_save(out_path, out_path)
-
-        # 3) Compute per-image score
-        per_item_score = SCORES.get(predicted_class, 0)
-        image_score    = per_item_score * object_count
-
-        # 4) Award to user
-        current_user.score += image_score
-
-        results.append({
-            'filename': fn,
-            'predicted_class': predicted_class,
-            'confidence': round(confidence*100,1),
-            'object_count': object_count,
-            'image_score': image_score,
-            'url': url_for('static', filename='uploads/' + "out_" + fn)
-        })
-
-    db.session.commit()
-    return render_template('result.html', results=results)
-
+# ----------------- Routes -----------------
 @app_blueprint.route('/')
 @app_blueprint.route('/home')
 def home_page():
@@ -67,16 +43,72 @@ def home_page():
         flash(f"Welcome back, {current_user.username}!", category='info')
     return render_template('home.html')
 
-@app_blueprint.route('/upload')
+@app_blueprint.route('/upload', methods=['GET', 'POST'])
 @login_required
 def upload_page():
+    if request.method == 'POST':
+        if 'file' not in request.files:
+            flash("No file part in request.", category='danger')
+            return redirect(request.url)
+
+        file = request.files['file']
+        if file.filename == '':
+            flash("No file selected.", category='danger')
+            return redirect(request.url)
+
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            file_path = os.path.join(UPLOAD_FOLDER, filename)
+            file.save(file_path)
+
+            # Increment upload count
+            current_user.upload_count = (current_user.upload_count or 0) + 1
+            db.session.commit()
+
+            return redirect(url_for('app_blueprint.analyze', filename=filename))
+        else:
+            flash("Invalid file type. Only CSV/Excel allowed.", category='danger')
+            return redirect(request.url)
+
     return render_template('upload.html')
 
-@app_blueprint.route('/leaderboard')
-def leaderboard_page():
-    users = User.query.order_by(User.score.desc()).all()
-    return render_template('leaderboard.html', users=users)
+@app_blueprint.route('/analyze')
+@login_required
+def analyze():
+    filename = request.args.get('filename')
+    if not filename:
+        flash("No file to analyze", category='danger')
+        return redirect(url_for('app_blueprint.upload_page'))
 
+    file_path = os.path.join(UPLOAD_FOLDER, filename)
+    if not os.path.exists(file_path):
+        flash("File not found.", category='danger')
+        return redirect(url_for('app_blueprint.upload_page'))
+
+    # Load file
+    if filename.endswith('.csv'):
+        df = pd.read_csv(file_path)
+    else:
+        df = pd.read_excel(file_path)
+
+    # Data preprocessing
+    df = df.dropna(how='all')  # remove empty rows
+    df = df.fillna(df.mean(numeric_only=True))  # numeric NaN → mean
+    df = df.fillna("Unknown")  # categorical NaN → Unknown
+
+    # Save processed DataFrame to PDF
+    pdf_path = os.path.join(UPLOAD_FOLDER, f'{os.path.splitext(filename)[0]}_processed.pdf')
+    create_pdf_from_df(df, pdf_path)
+
+    flash("Data processed successfully! Download PDF below.", category='success')
+    return send_file(pdf_path, as_attachment=True)
+
+@app_blueprint.route('/leaderboard')
+@login_required
+def leaderboard_page():
+    users = User.query.order_by(User.upload_count.desc()).all()
+    current_rank = next((i + 1 for i, u in enumerate(users) if u.id == current_user.id), None)
+    return render_template('leaderboard.html', users=users, current_rank=current_rank)
 
 @app_blueprint.route('/register', methods=['GET', 'POST'])
 def register_page():
@@ -86,7 +118,8 @@ def register_page():
             username=form.username.data,
             email_address=form.email_address.data,
             password=form.pswd.data,
-            score=0  # Initial score set to 0
+            score=0,
+            upload_count=0
         )
         db.session.add(user_to_create)
         db.session.commit()
@@ -98,7 +131,6 @@ def register_page():
         for err_msg in form.errors.values():
             flash(err_msg, category='danger')
     return render_template('register.html', form=form)
-
 
 @app_blueprint.route('/login', methods=['GET', 'POST'])
 def login_page():
@@ -114,8 +146,8 @@ def login_page():
             flash('Invalid username or password!', category='danger')
     return render_template('login.html', form=form)
 
-
 @app_blueprint.route('/logout')
+@login_required
 def logout_page():
     logout_user()
     flash('Logged out successfully!', category='info')
