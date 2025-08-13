@@ -1,0 +1,94 @@
+{% extends 'base.html' %}
+{% block title %}
+Register Page
+{% endblock %}
+
+{% block content %}
+<body class="text-center">
+  <div class="container mt-5">
+    <form method="POST" class="form-register neon-glow p-4 rounded" style="color:white; background: rgba(255,255,255,0.05); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 0 25px rgba(0,191,255,0.2); max-width: 450px; margin: auto;">
+      {{ form.hidden_tag() }}
+
+      <!-- ✅ Image from external source (Pixabay) -->
+      <img class="mb-4" src="https://cdn.pixabay.com/photo/2020/06/20/10/00/garbage-collector-5320665_1280.jpg" alt="Garbage Collector" width="100" height="100">
+
+      <h1 class="h4 mb-4 font-weight-bold text-white" style="color:#00bfff">
+        Create Your Account
+      </h1>
+
+      <div class="form-group text-left">
+        {{ form.username.label(class="font-weight-bold") }}
+        {{ form.username(class="form-control fancy-input", placeholder="User Name") }}
+      </div>
+
+      <div class="form-group text-left">
+        {{ form.email_address.label(class="font-weight-bold") }}
+        {{ form.email_address(class="form-control fancy-input", placeholder="Email Address") }}
+      </div>
+
+      <div class="form-group text-left">
+        {{ form.pswd.label(class="font-weight-bold") }}
+        {{ form.pswd(class="form-control fancy-input", placeholder="Password") }}
+      </div>
+
+      <div class="form-group text-left">
+        {{ form.confirm_pswd.label(class="font-weight-bold") }}
+        {{ form.confirm_pswd(class="form-control fancy-input", placeholder="Confirm Password") }}
+      </div>
+
+      <br>
+      {{ form.submit(class="btn btn-lg btn-block btn-glow") }}
+
+      <div class="mt-4">
+        <h6 class="text-light">Already have an account?</h6>
+        <a class="btn btn-sm btn-outline-info" href="{{ url_for('app_blueprint.login_page') }}">Login</a>
+      </div>
+    </form>
+  </div>
+</body>
+
+<style>
+  .neon-glow {
+    animation: pulseGlow 3s ease-in-out infinite;
+  }
+
+  .btn-glow {
+    background-color: #00bfff;
+    color: #fff;
+    font-weight: 600;
+    border: none;
+    transition: all 0.3s ease;
+    box-shadow: 0 0 20px rgba(0, 191, 255, 0.4);
+  }
+
+  .btn-glow:hover {
+    background-color: #007acc;
+    box-shadow: 0 0 25px rgba(0, 191, 255, 0.6);
+    transform: scale(1.02);
+  }
+
+  .fancy-input {
+    background-color: #1a1a1a;
+    border: 1px solid #00bfff;
+    color: white;
+    box-shadow: inset 0 0 5px rgba(0, 191, 255, 0.3);
+    transition: 0.3s;
+  }
+
+  .fancy-input:focus {
+    outline: none;
+    background-color: #111;
+    box-shadow: 0 0 10px #00bfff;
+    border-color: #00ffff;
+  }
+
+  @keyframes pulseGlow {
+    0%, 100% {
+      box-shadow: 0 0 20px rgba(0, 191, 255, 0.3);
+    }
+    50% {
+      box-shadow: 0 0 35px rgba(0, 191, 255, 0.6);
+    }
+  }
+</style>
+{% endblock %}
