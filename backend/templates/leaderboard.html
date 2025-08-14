@@ -14,9 +14,9 @@
             </tr>
         </thead>
         <tbody>
-            {% for i, user in enumerate(users, start=1) %}
+            {% for user in users %}
             <tr {% if user.id == current_user.id %} class="table-warning" {% endif %}>
-                <td>{{ i }}</td>
+                <td>{{ loop.index }}</td>  <!-- loop.index gives the 1-based index -->
                 <td>{{ user.username }}</td>
                 <td>{{ user.score }}</td>
                 <td>{{ user.upload_count }}</td>
