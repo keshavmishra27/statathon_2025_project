@@ -1,7 +1,7 @@
 import os
 import pandas as pd
 import numpy as np
-from flask import Blueprint, render_template, request, flash, url_for, redirect, send_file
+from flask import Blueprint, render_template, request, flash, url_for, redirect, send_file,current_app
 from flask_login import login_required, current_user, login_user, logout_user
 from werkzeug.utils import secure_filename
 from reportlab.lib.pagesizes import letter
@@ -114,15 +114,11 @@ def analyze():
     return render_template('result.html', filename=filename, table_html=table_html)
 
 
-@app_blueprint.route('/download/<filename>')
+@app_blueprint.route("/download/<filename>")
 @login_required
 def download_pdf(filename):
-    pdf_path = os.path.join(UPLOAD_FOLDER, f'{os.path.splitext(filename)[0]}_processed.pdf')
-    if os.path.exists(pdf_path):
-        return send_file(pdf_path, as_attachment=True)
-    else:
-        flash("PDF not found.", category='danger')
-        return redirect(url_for('app_blueprint.upload_page'))
+    pdf_path = os.path.join(current_app.root_path, "static", "uploads", filename)
+    return send_file(pdf_path, as_attachment=True)
 
 
 
