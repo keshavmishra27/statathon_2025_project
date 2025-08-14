@@ -6,9 +6,10 @@
     <h2 class="mb-4">Data Processed Successfully</h2>
     <p>Your file has been processed. You can download the PDF or view the preview below.</p>
 
-    <a href="{{ url_for('app_blueprint.analyze', filename=filename) }}" class="btn btn-info mb-3">
-        Download Processed PDF
-    </a>
+   <a href="{{ url_for('app_blueprint.download_pdf', filename=filename) }}" class="btn btn-info mb-3">
+    Download Processed PDF
+</a>
+
 
     {% if table_html %}
     <div class="table-responsive shadow-glow">

@@ -9,6 +9,7 @@ from reportlab.pdfgen import canvas
 from backend.forms import LoginForm, RegisterForm
 from backend import db
 from backend.credentials import User
+from backend.scores import get_score_for_file
 
 # ----------------- Config -----------------
 app_blueprint = Blueprint('app_blueprint', __name__)
@@ -63,8 +64,14 @@ def upload_page():
 
             # Increment upload count
             current_user.upload_count = (current_user.upload_count or 0) + 1
+
+            # Add score based on file type
+            file_score = get_score_for_file(filename)
+            current_user.score = (current_user.score or 0) + file_score
+
             db.session.commit()
 
+            flash(f"File uploaded! You earned {file_score} points.", category='success')
             return redirect(url_for('app_blueprint.analyze', filename=filename))
         else:
             flash("Invalid file type. Only CSV/Excel allowed.", category='danger')
@@ -92,21 +99,37 @@ def analyze():
         df = pd.read_excel(file_path)
 
     # Data preprocessing
-    df = df.dropna(how='all')  # remove empty rows
-    df = df.fillna(df.mean(numeric_only=True))  # numeric NaN → mean
-    df = df.fillna("Unknown")  # categorical NaN → Unknown
+    df = df.dropna(how='all')
+    df = df.fillna(df.mean(numeric_only=True))
+    df = df.fillna("Unknown")
 
-    # Save processed DataFrame to PDF
+    # Save processed PDF
     pdf_path = os.path.join(UPLOAD_FOLDER, f'{os.path.splitext(filename)[0]}_processed.pdf')
     create_pdf_from_df(df, pdf_path)
 
-    flash("Data processed successfully! Download PDF below.", category='success')
-    return send_file(pdf_path, as_attachment=True)
+    # Generate HTML preview table
+    table_html = df.to_html(classes="table table-bordered table-striped", index=False)
+
+    flash("Data processed successfully!", category='success')
+    return render_template('result.html', filename=filename, table_html=table_html)
+
+
+@app_blueprint.route('/download/<filename>')
+@login_required
+def download_pdf(filename):
+    pdf_path = os.path.join(UPLOAD_FOLDER, f'{os.path.splitext(filename)[0]}_processed.pdf')
+    if os.path.exists(pdf_path):
+        return send_file(pdf_path, as_attachment=True)
+    else:
+        flash("PDF not found.", category='danger')
+        return redirect(url_for('app_blueprint.upload_page'))
+
+
 
 @app_blueprint.route('/leaderboard')
 @login_required
 def leaderboard_page():
-    users = User.query.order_by(User.upload_count.desc()).all()
+    users = User.query.order_by(User.score.desc()).all()
     current_rank = next((i + 1 for i, u in enumerate(users) if u.id == current_user.id), None)
     return render_template('leaderboard.html', users=users, current_rank=current_rank)
 
