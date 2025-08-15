@@ -5,11 +5,76 @@
 <div class="container col-md-6">
     <h2 class="mb-4">Upload CSV/Excel File</h2>
     <form action="{{ url_for('app_blueprint.upload_page') }}" method="POST" enctype="multipart/form-data">
-        <div class="form-group">
-            <label for="file">Select File (CSV or Excel)</label>
-            <input type="file" class="form-control-file" id="file" name="file" accept=".csv, .xlsx, .xls" required>
+        <div class="form-group mb-3">
+            <label for="file"><strong>Select File (CSV or Excel)</strong></label>
+            <input type="file" class="form-control" id="file" name="file" accept=".csv, .xlsx, .xls" required>
         </div>
-        <button type="submit" class="btn btn-primary">Upload &amp; Analyze</button>
+
+        <!-- Preview Section -->
+        <div id="preview-section" class="mt-4" style="display: none;">
+            <h5 class="mb-3">📄 File Preview:</h5>
+            <div class="table-responsive" style="max-height: 300px; overflow-y: auto; border: 1px solid #ddd; border-radius: 6px;">
+                <table class="table table-sm table-bordered table-hover mb-0" id="file-preview"></table>
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary mt-4">Upload &amp; Configure</button>
     </form>
 </div>
+
+<!-- PapaParse for CSV Preview -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<!-- XLSX library for Excel preview -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<script>
+document.getElementById('file').addEventListener('change', function(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const previewSection = document.getElementById('preview-section');
+    const previewTable = document.getElementById('file-preview');
+    previewTable.innerHTML = ""; // Clear old preview
+
+    // Show preview section
+    previewSection.style.display = 'block';
+
+    // For CSV preview
+    if (file.name.endsWith('.csv')) {
+        Papa.parse(file, {
+            complete: function(results) {
+                const rows = results.data.slice(0, 5); // Show only first 5 rows
+                renderTable(rows, previewTable);
+            }
+        });
+    } else {
+        // For Excel preview
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const data = e.target.result;
+            const workbook = XLSX.read(data, { type: 'binary' });
+            const firstSheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[firstSheetName];
+            const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+            const rows = jsonData.slice(0, 5); // First 5 rows
+            renderTable(rows, previewTable);
+        };
+        reader.readAsBinaryString(file);
+    }
+});
+
+// Function to render table
+function renderTable(rows, table) {
+    rows.forEach((row, rowIndex) => {
+        const tr = document.createElement('tr');
+        row.forEach(cell => {
+            const cellElement = document.createElement(rowIndex === 0 ? 'th' : 'td');
+            cellElement.textContent = cell;
+            tr.appendChild(cellElement);
+        });
+        table.appendChild(tr);
+    });
+}
+</script>
 {% endblock %}

@@ -3,18 +3,56 @@
 
 {% block content %}
 <div class="container">
-    <h2 class="mb-4">Data Processed Successfully</h2>
-    <p>Your file has been processed. You can download the PDF or view the preview below.</p>
+    <h2 class="mb-4">AI-Enhanced Analysis Result</h2>
+    <p class="lead">Your file has been processed with the full AI-based pipeline, including cleaning, validation, and statistical analysis.</p>
 
-   <a href="{{ url_for('app_blueprint.download_pdf', filename=filename) }}" class="btn btn-info mb-3">
-    Download Processed PDF
-</a>
+    <!-- Download Button -->
+    <a href="{{ url_for('app_blueprint.download_pdf', filename=filename) }}" class="btn btn-primary mb-3">
+        📄 Download Processed PDF
+    </a>
 
+    <!-- Workflow Log -->
+    {% if workflow_log %}
+    <div class="card mb-4 shadow-sm">
+        <div class="card-header bg-dark text-white">
+            <h5 class="mb-0">Workflow Log</h5>
+        </div>
+        <div class="card-body">
+            <ul class="mb-0">
+                {% for step in workflow_log %}
+                <li>{{ step }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    {% endif %}
 
+    <!-- Weighted Statistics -->
+    {% if weighted_stats %}
+    <div class="card mb-4">
+        <div class="card-header bg-info text-white">
+            <h5 class="mb-0">Weighted Statistics</h5>
+        </div>
+        <div class="card-body">
+            <ul class="list-unstyled mb-0">
+                {% for key, value in weighted_stats.items() %}
+                <li><strong>{{ key }}:</strong> {{ value }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Data Table -->
     {% if table_html %}
-    <div class="table-responsive shadow-glow">
+    <div class="table-responsive shadow-glow mb-4">
         {{ table_html | safe }}
     </div>
     {% endif %}
+
+    <!-- Info Note -->
+    <div class="alert alert-secondary" role="alert">
+        <strong>Note:</strong> The above report includes AI-powered imputation, outlier detection, and rule-based checks. All processing steps are documented in the workflow log.
+    </div>
 </div>
 {% endblock %}

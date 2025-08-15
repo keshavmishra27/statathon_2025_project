@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Configure Processing{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2 class="mb-4">Schema Mapping & Processing Configuration</h2>
+
+    <form method="POST">
+        <!-- Schema Mapping -->
+        <div class="card mb-4">
+            <div class="card-header bg-dark text-white">Schema Mapping</div>
+            <div class="card-body">
+                {% if columns %}
+                    {% for col in columns %}
+                    <div class="mb-2">
+                        <label class="form-label">{{ col }}</label>
+                        <input type="text" name="map_{{ col }}" value="{{ col }}" class="form-control">
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted">No columns detected. Please upload a valid CSV or Excel file.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Imputation Method -->
+        <div class="mb-3">
+            <label for="imputation_method" class="form-label">Imputation Method</label>
+            <select name="imputation_method" class="form-control">
+                <option value="mean">Mean</option>
+                <option value="median">Median</option>
+                <option value="knn">KNN</option>
+            </select>
+        </div>
+
+        <!-- Outlier Detection -->
+        <div class="mb-3">
+            <label for="outlier_method" class="form-label">Outlier Detection Method</label>
+            <select name="outlier_method" class="form-control">
+                <option value="iqr">IQR</option>
+                <option value="zscore">Z-score</option>
+                <option value="winsorization">Winsorization</option>
+            </select>
+        </div>
+
+        <!-- Rule-based Checks -->
+        <div class="mb-3">
+            <label class="form-label">Rule-based Checks</label>
+            <div>
+                <input type="checkbox" name="rules" value="consistency"> Consistency
+                <input type="checkbox" name="rules" value="skip-patterns"> Skip Patterns
+            </div>
+        </div>
+
+        <!-- Weight Column -->
+        <div class="mb-3">
+            <label for="weight_column" class="form-label">Weight Column</label>
+            <input type="text" name="weight_column" class="form-control">
+        </div>
+
+        <button type="submit" class="btn btn-primary">Run Analysis</button>
+    </form>
+</div>
+{% endblock %}

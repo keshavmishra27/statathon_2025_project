@@ -1,7 +1,7 @@
 import os
 import pandas as pd
 import numpy as np
-from flask import Blueprint, render_template, request, flash, url_for, redirect, send_file,current_app
+from flask import Blueprint, render_template, request, flash, url_for, redirect, send_file,current_app,session
 from flask_login import login_required, current_user, login_user, logout_user
 from werkzeug.utils import secure_filename
 from reportlab.lib.pagesizes import letter
@@ -44,6 +44,8 @@ def home_page():
         flash(f"Welcome back, {current_user.username}!", category='info')
     return render_template('home.html')
 
+from flask import session
+
 @app_blueprint.route('/upload', methods=['GET', 'POST'])
 @login_required
 def upload_page():
@@ -66,22 +68,40 @@ def upload_page():
             current_user.upload_count = (current_user.upload_count or 0) + 1
 
             # Add score based on file type
-            file_score = get_score_for_file(filename)
+            file_score = get_score_for_file(filename, file_path=file_path, ai_applied=False)
             current_user.score = (current_user.score or 0) + file_score
 
             db.session.commit()
 
-            flash(f"File uploaded! You earned {file_score} points.", category='success')
-            return redirect(url_for('app_blueprint.analyze', filename=filename))
+            # --- NEW: store columns for auto schema mapping ---
+            try:
+                if filename.endswith('.csv'):
+                    df = pd.read_csv(file_path, nrows=1)  # read only first row for speed
+                else:
+                    df = pd.read_excel(file_path, nrows=1)
+                session['uploaded_columns'] = df.columns.tolist()
+            except Exception as e:
+                flash(f"Could not read columns for auto mapping: {e}", category='warning')
+                session['uploaded_columns'] = []
+
+            return redirect(url_for('app_blueprint.configure_processing', filename=filename))
         else:
             flash("Invalid file type. Only CSV/Excel allowed.", category='danger')
             return redirect(request.url)
 
     return render_template('upload.html')
 
+
 @app_blueprint.route('/analyze')
 @login_required
 def analyze():
+    from sklearn.impute import KNNImputer
+    from sklearn.ensemble import IsolationForest
+    import numpy as np
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+    import io
+
     filename = request.args.get('filename')
     if not filename:
         flash("No file to analyze", category='danger')
@@ -98,20 +118,155 @@ def analyze():
     else:
         df = pd.read_excel(file_path)
 
-    # Data preprocessing
-    df = df.dropna(how='all')
-    df = df.fillna(df.mean(numeric_only=True))
-    df = df.fillna("Unknown")
+    config = session.get('processing_config', {})
+    workflow_log = []
 
-    # Save processed PDF
+    # ---------- Schema Mapping ----------
+    schema_map = config.get("schema_mapping", {})
+    for old_col, new_col in schema_map.items():
+        if new_col and old_col != new_col:
+            df.rename(columns={old_col: new_col}, inplace=True)
+            workflow_log.append(f'Mapped "{old_col}" to "{new_col}"')
+
+    numeric_cols = df.select_dtypes(include=np.number).columns
+
+    # ---------- Missing Value Imputation ----------
+    impute_method = config.get("imputation_method", "mean")
+    if impute_method == "mean":
+        df[numeric_cols] = df[numeric_cols].fillna(df[numeric_cols].mean())
+        workflow_log.append("Missing values filled with Mean")
+    elif impute_method == "median":
+        df[numeric_cols] = df[numeric_cols].fillna(df[numeric_cols].median())
+        workflow_log.append("Missing values filled with Median")
+    elif impute_method == "knn":
+        imputer = KNNImputer(n_neighbors=3)
+        df[numeric_cols] = imputer.fit_transform(df[numeric_cols])
+        workflow_log.append("Missing values filled with KNN Imputer (k=3)")
+
+    # ---------- Outlier Detection ----------
+    outlier_method = config.get("outlier_method", "isolationforest")
+    if outlier_method == "isolationforest":
+        iso = IsolationForest(contamination=0.05, random_state=42)
+        df['Outlier'] = iso.fit_predict(df[numeric_cols])
+        df['Outlier'] = df['Outlier'].map({1: 'Normal', -1: 'Outlier'})
+        workflow_log.append("Outliers detected using Isolation Forest")
+    elif outlier_method == "iqr":
+        Q1 = df[numeric_cols].quantile(0.25)
+        Q3 = df[numeric_cols].quantile(0.75)
+        IQR = Q3 - Q1
+        mask = ~((df[numeric_cols] < (Q1 - 1.5 * IQR)) | (df[numeric_cols] > (Q3 + 1.5 * IQR))).any(axis=1)
+        df['Outlier'] = np.where(mask, 'Normal', 'Outlier')
+        workflow_log.append("Outliers detected using IQR method")
+    elif outlier_method == "zscore":
+        from scipy.stats import zscore
+        z_scores = np.abs(zscore(df[numeric_cols]))
+        mask = (z_scores < 3).all(axis=1)
+        df['Outlier'] = np.where(mask, 'Normal', 'Outlier')
+        workflow_log.append("Outliers detected using Z-Score method")
+    elif outlier_method == "winsorization":
+        from scipy.stats.mstats import winsorize
+        for col in numeric_cols:
+            df[col] = winsorize(df[col], limits=[0.05, 0.05])
+        df['Outlier'] = 'Adjusted via Winsorization'
+        workflow_log.append("Outliers handled using Winsorization (5% limits)")
+
+    # ---------- Rule-based Validation ----------
+    rules = config.get("rules", [])
+    for rule in rules:
+        if rule == "age_limit" and "Age" in df.columns:
+            invalid_count = (df["Age"] > 120).sum()
+            workflow_log.append(f"Rule 'Age < 120': {invalid_count} violations")
+        if rule == "income_positive" and "Income" in df.columns:
+            invalid_count = (df["Income"] <= 0).sum()
+            workflow_log.append(f"Rule 'Income > 0': {invalid_count} violations")
+
+    # ---------- Weight Application ----------
+    weighted_stats = {}
+    weight_col = config.get("weight_column")
+    if weight_col and weight_col in df.columns and 'Price' in df.columns:
+        w = df[weight_col]
+        p = df['Price']
+        weighted_mean = np.average(p, weights=w)
+        std_error = np.sqrt(np.cov(p, aweights=w) / len(p))
+        margin_error = 1.96 * std_error
+        weighted_stats = {
+            'Weighted Mean Price': round(weighted_mean, 2),
+            'Margin of Error': round(margin_error, 2)
+        }
+        workflow_log.append(f"Applied weights from '{weight_col}' and calculated MOE")
+
+    # ---------- Save Enhanced PDF ----------
     pdf_path = os.path.join(UPLOAD_FOLDER, f'{os.path.splitext(filename)[0]}_processed.pdf')
-    create_pdf_from_df(df, pdf_path)
+    c = canvas.Canvas(pdf_path, pagesize=letter)
+    width, height = letter
+    text = c.beginText(40, height - 40)
+    text.setFont("Helvetica", 10)
 
-    # Generate HTML preview table
+    text.textLine("AI-Enhanced Report")
+    text.textLine("=" * 40)
+    text.textLine("Workflow Log:")
+    for step in workflow_log:
+        text.textLine(f"- {step}")
+
+    if weighted_stats:
+        text.textLine("")
+        text.textLine("Weighted Statistics:")
+        for k, v in weighted_stats.items():
+            text.textLine(f"{k}: {v}")
+
+    text.textLine("")
+    text.textLine("Processed Data Preview:")
+    for line in df.head(20).to_string(index=False).split('\n'):
+        text.textLine(line)
+
+    c.drawText(text)
+    c.showPage()
+    c.save()
+
+    # ---------- HTML Preview ----------
     table_html = df.to_html(classes="table table-bordered table-striped", index=False)
 
-    flash("Data processed successfully!", category='success')
-    return render_template('result.html', filename=filename, table_html=table_html)
+    flash("Data processed successfully with full AI-enhanced pipeline!", category='success')
+    return render_template(
+        'result.html',
+        filename=os.path.basename(pdf_path),
+        table_html=table_html,
+        weighted_stats=weighted_stats,
+        workflow_log=workflow_log
+    )
+
+
+from flask import session
+
+@app_blueprint.route('/configure/<filename>', methods=['GET', 'POST'])
+@login_required
+def configure_processing(filename):
+    file_path = os.path.join(UPLOAD_FOLDER, filename)
+
+    # Load the dataset to get column names
+    if filename.endswith('.csv'):
+        df = pd.read_csv(file_path)
+    else:
+        df = pd.read_excel(file_path)
+
+    # Prefer pre-loaded columns from session
+    columns = session.get('uploaded_columns', df.columns.tolist())
+
+    if request.method == 'POST':
+        config = {
+            "schema_mapping": {col: request.form.get(f"map_{col}") for col in columns},
+            "imputation_method": request.form.get("imputation_method"),
+            "outlier_method": request.form.get("outlier_method"),
+            "rules": request.form.getlist("rules"),
+            "weight_column": request.form.get("weight_column")
+        }
+
+        session['processing_config'] = config
+        return redirect(url_for('app_blueprint.analyze', filename=filename))
+
+    return render_template('configure.html', filename=filename, columns=columns)
+
+
 
 
 @app_blueprint.route("/download/<filename>")
