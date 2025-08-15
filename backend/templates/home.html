@@ -3,13 +3,52 @@
     Welcome to Keshav Coding Market
 {% endblock %}
 {% block content %}
-    <div class="position-relative overflow-hidden p-3 p-md-5 m-md-3 text-center bg-dark" style="color:white">
-        <div class="col-md-5 p-lg-5 mx-auto my-5">
-            <h1 class="display-4 font-weight-normal">Stathon 2025 Project</h1>
-            <p class="lead font-weight-normal">Get Started by clicking the link below</p>
-            <a class="btn btn-primary" href="{{ url_for('app_blueprint.upload_page') }}">Get Started</a>
+    <div class="text-center text-light py-5">
+        <!-- Animated Heading -->
+        <h1 class="display-3 font-weight-bold mb-3" style="animation: fadeInDown 1.5s;">
+            🚀 Stathon 2025 Project
+        </h1>
+        <p class="lead mb-4" style="animation: fadeInUp 2s;">
+            Transforming data into insights with style
+        </p>
+
+        <!-- Animated Button -->
+        <a href="{{ url_for('app_blueprint.upload_page') }}" 
+           class="btn btn-lg btn-primary btn-glow px-5 py-3"
+           style="font-size: 1.2rem; animation: bounceIn 2.5s;">
+            Get Started
+        </a>
+
+        <!-- Decorative Icons -->
+        <div class="mt-5 d-flex justify-content-center flex-wrap">
+            <div class="m-3 p-4 bg-dark rounded tilt-card shadow-glow" style="width: 180px;">
+                <i class="fas fa-upload fa-3x mb-3 text-info"></i>
+                <h5>Upload Files</h5>
+            </div>
+            <div class="m-3 p-4 bg-dark rounded tilt-card shadow-glow" style="width: 180px;">
+                <i class="fas fa-chart-line fa-3x mb-3 text-success"></i>
+                <h5>Analyze Data</h5>
+            </div>
+            <div class="m-3 p-4 bg-dark rounded tilt-card shadow-glow" style="width: 180px;">
+                <i class="fas fa-trophy fa-3x mb-3 text-warning"></i>
+                <h5>Leaderboard</h5>
+            </div>
         </div>
-        <div class="product-device box-shadow d-none d-md-block"></div>
-        <div class="product-device product-device-2 box-shadow d-none d-md-block"></div>
     </div>
+
+    <style>
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes bounceIn {
+            0% { transform: scale(0.8); opacity: 0; }
+            50% { transform: scale(1.05); opacity: 1; }
+            100% { transform: scale(1); }
+        }
+    </style>
 {% endblock %}
