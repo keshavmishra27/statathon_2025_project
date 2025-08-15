@@ -2,23 +2,31 @@
 {% block title %}Upload File{% endblock %}
 
 {% block content %}
-<div class="container col-md-6">
-    <h2 class="mb-4">Upload CSV/Excel File</h2>
-    <form action="{{ url_for('app_blueprint.upload_page') }}" method="POST" enctype="multipart/form-data">
+<!-- Animate.css & AOS -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.css"/>
+
+<div class="container col-md-6 mt-4">
+    <h2 class="mb-4 text-center animate__animated animate__fadeInDown">📂 Upload CSV/Excel File</h2>
+
+    <form action="{{ url_for('app_blueprint.upload_page') }}" method="POST" enctype="multipart/form-data" data-aos="zoom-in" data-aos-duration="800">
         <div class="form-group mb-3">
-            <label for="file"><strong>Select File (CSV or Excel)</strong></label>
-            <input type="file" class="form-control" id="file" name="file" accept=".csv, .xlsx, .xls" required>
+            <label for="file" class="form-label"><strong>Select File (CSV or Excel)</strong></label>
+            <input type="file" class="form-control shadow-sm" id="file" name="file" accept=".csv, .xlsx, .xls" required
+                   style="transition: box-shadow 0.3s ease-in-out;">
         </div>
 
         <!-- Preview Section -->
-        <div id="preview-section" class="mt-4" style="display: none;">
+        <div id="preview-section" class="mt-4 animate__animated animate__fadeInUp" style="display: none;">
             <h5 class="mb-3">📄 File Preview:</h5>
             <div class="table-responsive" style="max-height: 300px; overflow-y: auto; border: 1px solid #ddd; border-radius: 6px;">
                 <table class="table table-sm table-bordered table-hover mb-0" id="file-preview"></table>
             </div>
         </div>
 
-        <button type="submit" class="btn btn-primary mt-4">Upload &amp; Configure</button>
+        <button type="submit" class="btn btn-primary btn-lg mt-4 shadow" data-aos="fade-up" data-aos-delay="200">
+            🚀 Upload &amp; Configure
+        </button>
     </form>
 </div>
 
@@ -26,8 +34,21 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <!-- XLSX library for Excel preview -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<!-- AOS JS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.js"></script>
 
 <script>
+AOS.init();
+
+// File glow effect on focus
+const fileInput = document.getElementById('file');
+fileInput.addEventListener('focus', () => {
+    fileInput.style.boxShadow = '0 0 10px rgba(0, 123, 255, 0.6)';
+});
+fileInput.addEventListener('blur', () => {
+    fileInput.style.boxShadow = 'none';
+});
+
 document.getElementById('file').addEventListener('change', function(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -64,10 +85,11 @@ document.getElementById('file').addEventListener('change', function(event) {
     }
 });
 
-// Function to render table
+// Function to render table with fade-in effect
 function renderTable(rows, table) {
     rows.forEach((row, rowIndex) => {
         const tr = document.createElement('tr');
+        tr.classList.add('animate__animated', 'animate__fadeIn');
         row.forEach(cell => {
             const cellElement = document.createElement(rowIndex === 0 ? 'th' : 'td');
             cellElement.textContent = cell;

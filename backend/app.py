@@ -38,7 +38,7 @@ def create_pdf_from_df(df, pdf_path):
 
 # ----------------- Routes -----------------
 @app_blueprint.route('/')
-@app_blueprint.route('/home')
+@app_blueprint.route('/home', methods=['GET', 'POST'])
 def home_page():
     if current_user.is_authenticated:
         flash(f"Welcome back, {current_user.username}!", category='info')
@@ -92,16 +92,9 @@ def upload_page():
     return render_template('upload.html')
 
 
-@app_blueprint.route('/analyze')
+@app_blueprint.route('/analyze',  methods=['GET', 'POST'])
 @login_required
 def analyze():
-    from sklearn.impute import KNNImputer
-    from sklearn.ensemble import IsolationForest
-    import numpy as np
-    import matplotlib.pyplot as plt
-    import seaborn as sns
-    import io
-
     filename = request.args.get('filename')
     if not filename:
         flash("No file to analyze", category='danger')
@@ -111,6 +104,30 @@ def analyze():
     if not os.path.exists(file_path):
         flash("File not found.", category='danger')
         return redirect(url_for('app_blueprint.upload_page'))
+
+    # --- If file is already processed PDF, just show result ---
+    if filename.endswith("_processed.pdf"):
+        flash("Displaying pre-processed PDF report", category='info')
+        return render_template(
+            'result.html',
+            filename=filename,
+            table_html=None,
+            weighted_stats=None,
+            workflow_log=["Data was processed in configuration step"]
+        )
+
+    # --- Else: run full pipeline (your current code) ---
+    return run_full_pipeline(file_path, filename)
+
+
+def run_full_pipeline(file_path, filename):
+    from sklearn.impute import KNNImputer
+    from sklearn.ensemble import IsolationForest
+    import numpy as np
+    from reportlab.pdfgen import canvas
+    from reportlab.lib.pagesizes import letter
+    from scipy import stats
+    from scipy.stats.mstats import winsorize
 
     # Load file
     if filename.endswith('.csv'):
@@ -158,13 +175,11 @@ def analyze():
         df['Outlier'] = np.where(mask, 'Normal', 'Outlier')
         workflow_log.append("Outliers detected using IQR method")
     elif outlier_method == "zscore":
-        from scipy.stats import zscore
-        z_scores = np.abs(zscore(df[numeric_cols]))
+        z_scores = np.abs(stats.zscore(df[numeric_cols]))
         mask = (z_scores < 3).all(axis=1)
         df['Outlier'] = np.where(mask, 'Normal', 'Outlier')
         workflow_log.append("Outliers detected using Z-Score method")
     elif outlier_method == "winsorization":
-        from scipy.stats.mstats import winsorize
         for col in numeric_cols:
             df[col] = winsorize(df[col], limits=[0.05, 0.05])
         df['Outlier'] = 'Adjusted via Winsorization'
@@ -236,8 +251,6 @@ def analyze():
     )
 
 
-from flask import session
-
 @app_blueprint.route('/configure/<filename>', methods=['GET', 'POST'])
 @login_required
 def configure_processing(filename):
@@ -269,7 +282,7 @@ def configure_processing(filename):
 
 
 
-@app_blueprint.route("/download/<filename>")
+@app_blueprint.route("/download/<filename>",  methods=['GET', 'POST'])
 @login_required
 def download_pdf(filename):
     pdf_path = os.path.join(current_app.root_path, "static", "uploads", filename)
@@ -277,7 +290,7 @@ def download_pdf(filename):
 
 
 
-@app_blueprint.route('/leaderboard')
+@app_blueprint.route('/leaderboard', methods=['GET', 'POST'])
 @login_required
 def leaderboard_page():
     users = User.query.order_by(User.score.desc()).all()
@@ -320,7 +333,7 @@ def login_page():
             flash('Invalid username or password!', category='danger')
     return render_template('login.html', form=form)
 
-@app_blueprint.route('/logout')
+@app_blueprint.route('/logout', methods=['GET', 'POST'])
 @login_required
 def logout_page():
     logout_user()

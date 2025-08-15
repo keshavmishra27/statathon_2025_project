@@ -2,17 +2,39 @@
 {% block title %}Configure Processing{% endblock %}
 
 {% block content %}
-<div class="container">
-    <h2 class="mb-4">Schema Mapping & Processing Configuration</h2>
+<!-- AOS (Animate on Scroll) Styles -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.css" rel="stylesheet">
 
-    <form method="POST">
+<div class="container">
+    <h2 class="mb-4 animate__animated animate__fadeInDown">⚙ Schema Mapping & Processing Configuration</h2>
+
+    <!-- SweetAlert2 Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+            <script>
+                document.addEventListener("DOMContentLoaded", function() {
+                    {% for category, message in messages %}
+                        Swal.fire({
+                            icon: "{{ 'success' if category == 'success' else 'error' if category == 'danger' else 'info' }}",
+                            title: "{{ message }}",
+                            showConfirmButton: false,
+                            timer: 2000
+                        });
+                    {% endfor %}
+                });
+            </script>
+        {% endif %}
+    {% endwith %}
+
+    <form method="POST" data-aos="fade-up" data-aos-duration="800">
         <!-- Schema Mapping -->
-        <div class="card mb-4">
-            <div class="card-header bg-dark text-white">Schema Mapping</div>
+        <div class="card mb-4 shadow-lg" data-aos="zoom-in" data-aos-delay="100">
+            <div class="card-header bg-dark text-white">🗂 Schema Mapping</div>
             <div class="card-body">
                 {% if columns %}
                     {% for col in columns %}
-                    <div class="mb-2">
+                    <div class="mb-2" data-aos="fade-left" data-aos-delay="{{ loop.index * 50 }}">
                         <label class="form-label">{{ col }}</label>
                         <input type="text" name="map_{{ col }}" value="{{ col }}" class="form-control">
                     </div>
@@ -24,8 +46,8 @@
         </div>
 
         <!-- Imputation Method -->
-        <div class="mb-3">
-            <label for="imputation_method" class="form-label">Imputation Method</label>
+        <div class="mb-3" data-aos="fade-right" data-aos-delay="200">
+            <label for="imputation_method" class="form-label">🧮 Imputation Method</label>
             <select name="imputation_method" class="form-control">
                 <option value="mean">Mean</option>
                 <option value="median">Median</option>
@@ -34,8 +56,8 @@
         </div>
 
         <!-- Outlier Detection -->
-        <div class="mb-3">
-            <label for="outlier_method" class="form-label">Outlier Detection Method</label>
+        <div class="mb-3" data-aos="fade-left" data-aos-delay="300">
+            <label for="outlier_method" class="form-label">📊 Outlier Detection Method</label>
             <select name="outlier_method" class="form-control">
                 <option value="iqr">IQR</option>
                 <option value="zscore">Z-score</option>
@@ -44,8 +66,8 @@
         </div>
 
         <!-- Rule-based Checks -->
-        <div class="mb-3">
-            <label class="form-label">Rule-based Checks</label>
+        <div class="mb-3" data-aos="fade-right" data-aos-delay="400">
+            <label class="form-label">✅ Rule-based Checks</label>
             <div>
                 <input type="checkbox" name="rules" value="consistency"> Consistency
                 <input type="checkbox" name="rules" value="skip-patterns"> Skip Patterns
@@ -53,12 +75,19 @@
         </div>
 
         <!-- Weight Column -->
-        <div class="mb-3">
-            <label for="weight_column" class="form-label">Weight Column</label>
+        <div class="mb-3" data-aos="fade-left" data-aos-delay="500">
+            <label for="weight_column" class="form-label">⚖ Weight Column</label>
             <input type="text" name="weight_column" class="form-control">
         </div>
 
-        <button type="submit" class="btn btn-primary">Run Analysis</button>
+        <!-- Animated Submit -->
+        <button type="submit" class="btn btn-primary btn-lg shadow-sm animate__animated animate__pulse animate__infinite">🚀 Run Analysis</button>
     </form>
 </div>
+
+<!-- AOS Script -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.js"></script>
+<script>
+    AOS.init();
+</script>
 {% endblock %}
