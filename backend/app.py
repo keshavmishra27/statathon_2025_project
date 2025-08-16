@@ -294,7 +294,7 @@ def generate_ai_insights(df):
     {insights_text}
     """
 
-    model = genai.GenerativeModel("gemini-pro")
+    model = genai.GenerativeModel("models/gemini-1.5-flash-latest")
     response = model.generate_content(prompt)
 
     return response.text
