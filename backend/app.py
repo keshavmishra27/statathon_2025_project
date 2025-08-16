@@ -14,6 +14,9 @@ from sklearn.impute import KNNImputer
 import plotly.express as px
 import json
 from sklearn.linear_model import LinearRegression
+import os
+import plotly
+import google.generativeai as genai
 # ----------------- Config -----------------
 app_blueprint = Blueprint('app_blueprint', __name__)
 UPLOAD_FOLDER = os.path.join("backend", "static", "uploads")
@@ -248,15 +251,6 @@ def configure_processing(filename):
 
     return render_template('configure.html', filename=filename, columns=columns, ai_suggest=ai_suggest)
 
-import os
-import json
-import pandas as pd
-import plotly.express as px
-import plotly
-from flask import render_template, session, redirect, url_for, flash
-from flask_login import login_required
-from sklearn.linear_model import LinearRegression
-import google.generativeai as genai
 
 
 def generate_ai_insights(df):
@@ -318,13 +312,12 @@ def visualize_page(filename):
     numeric_cols = df.select_dtypes(include='number').columns
     insights = {}
 
-    # Create Plotly figure
+    # Create initial Plotly figure
     fig = px.line(df, y=numeric_cols, title="AI-Augmented Visualization")
     fig.update_layout(template="plotly_dark")
 
-    # Column-wise trend + anomaly detection (for chart + raw dictionary)
+    # Column-wise trend + anomaly detection
     for col in numeric_cols:
-    # Fill NaN with column mean
         col_data = df[[col]].copy()
         col_data[col] = col_data[col].fillna(col_data[col].mean())
 
@@ -347,27 +340,31 @@ def visualize_page(filename):
         anomaly_indices = col_data.index[col_data[col].isin(anomalies)]
         if len(anomaly_indices) > 0:
             fig.add_scatter(
-            x=anomaly_indices,
-            y=col_data.loc[anomaly_indices, col],
-            mode='markers',
-            marker=dict(color='red', size=10),
-            name=f"{col} anomalies"
+                x=anomaly_indices,
+                y=col_data.loc[anomaly_indices, col],
+                mode='markers',
+                marker=dict(color='red', size=10),
+                name=f"{col} anomalies"
             )
 
-
-    # 🔥 AI narrative (Gemini-powered)
+    # 🔥 AI narrative
     ai_narrative = generate_ai_insights(df)
 
     # Serialize Plotly figure
     graphJSON = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
+
+    # 🔥 Send full dataframe to frontend as JSON
+    data_json = df.to_json(orient="records")
 
     return render_template(
         "visualize.html",
         filename=filename,
         graphJSON=graphJSON,
         insights=insights,
-        ai_narrative=ai_narrative,   # <--- AI narrative injected into template
-        table_html=df.head(10).to_html(classes="table table-striped table-dark table-sm", index=False)
+        all_columns=df.columns.tolist(),
+        ai_narrative=ai_narrative,
+        table_html=df.head(10).to_html(classes="table table-striped table-dark table-sm", index=False),
+        data_json=data_json
     )
 
 
