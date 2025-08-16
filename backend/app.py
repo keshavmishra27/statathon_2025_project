@@ -10,6 +10,9 @@ from backend.forms import LoginForm, RegisterForm
 from backend import db
 from backend.credentials import User
 from backend.scores import get_score_for_file
+import matplotlib.pyplot as plt
+import seaborn as sns
+import io,base64
 
 # ----------------- Config -----------------
 app_blueprint = Blueprint('app_blueprint', __name__)
@@ -241,6 +244,9 @@ def run_full_pipeline(file_path, filename):
     # ---------- HTML Preview ----------
     table_html = df.to_html(classes="table table-bordered table-striped", index=False)
 
+    # Store processed dataframe in session for visualization
+    session['data'] = df.to_dict(orient="list")
+
     flash("Data processed successfully with full AI-enhanced pipeline!", category='success')
     return render_template(
         'result.html',
@@ -251,18 +257,20 @@ def run_full_pipeline(file_path, filename):
     )
 
 
+
+PROCESSED_FOLDER = "processed"  # make sure this folder exists
+
 @app_blueprint.route('/configure/<filename>', methods=['GET', 'POST'])
 @login_required
 def configure_processing(filename):
     file_path = os.path.join(UPLOAD_FOLDER, filename)
 
-    # Load the dataset to get column names
+    # Load dataset
     if filename.endswith('.csv'):
         df = pd.read_csv(file_path)
     else:
         df = pd.read_excel(file_path)
 
-    # Prefer pre-loaded columns from session
     columns = session.get('uploaded_columns', df.columns.tolist())
 
     if request.method == 'POST':
@@ -274,12 +282,38 @@ def configure_processing(filename):
             "weight_column": request.form.get("weight_column")
         }
 
+        # ✅ Save config in session
         session['processing_config'] = config
-        return redirect(url_for('app_blueprint.analyze', filename=filename))
+
+        # ✅ Save processed data server-side as JSON
+        os.makedirs(PROCESSED_FOLDER, exist_ok=True)
+        processed_file_path = os.path.join(PROCESSED_FOLDER, f"{filename}_processed.json")
+        df.to_json(processed_file_path, orient="records")
+        session['data_file'] = processed_file_path
+
+        # Route based on button
+        if request.form.get("action") == "visualize":
+            return redirect(url_for('app_blueprint.visualize_page'))
+        else:
+            return redirect(url_for('app_blueprint.analyze', filename=filename))
 
     return render_template('configure.html', filename=filename, columns=columns)
 
 
+
+
+@app_blueprint.route('/visualize')
+@login_required
+def visualize_page():
+    if 'data_file' not in session:
+        flash("⚠ No data available. Please upload and configure first.", category="danger")
+        return redirect(url_for('app_blueprint.upload_page'))
+
+    # Load JSON data from server
+    df = pd.read_json(session['data_file'])
+    df_json = df.to_dict(orient='list')
+
+    return render_template("visualize.html", df_json=df_json, columns=df.columns.tolist())
 
 
 @app_blueprint.route("/download/<filename>",  methods=['GET', 'POST'])

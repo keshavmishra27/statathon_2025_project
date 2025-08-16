@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block title %}Data Visualization{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4 text-light text-center">📊 Interactive Data Visualization</h2>
+    <p class="text-muted text-center">Explore your dataset with interactive charts & correlation heatmap</p>
+
+    <!-- Dropdown for selecting column -->
+    <div class="mb-4">
+        <label class="form-label text-light">Select Column to Visualize</label>
+        <select id="columnSelect" class="form-control">
+            {% for col in df_json.keys() %}
+                <option value="{{ col }}">{{ col }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <!-- Graph container -->
+    <div id="chart" style="height:500px;"></div>
+
+    <!-- Correlation Matrix -->
+    <h3 class="mt-5 text-light">🔗 Correlation Matrix</h3>
+    <div id="corrMatrix" style="height:600px;"></div>
+</div>
+
+<!-- Plotly.js -->
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<script>
+    const df = {{ df_json|tojson }};
+    const columns = Object.keys(df);
+
+    // Determine if a column is numeric
+    function isNumeric(arr) {
+        return arr.every(v => !isNaN(Number(v)));
+    }
+
+    // Draw histogram or bar chart depending on type
+    function drawChart(col) {
+        const data = df[col];
+        let trace;
+
+        if (isNumeric(data)) {
+            trace = {
+                x: data.map(Number),
+                type: 'histogram',
+                marker: {color: '#1f77b4'}
+            };
+        } else {
+            // categorical → count frequency
+            const counts = {};
+            data.forEach(v => counts[v] = (counts[v] || 0) + 1);
+            trace = {
+                x: Object.keys(counts),
+                y: Object.values(counts),
+                type: 'bar',
+                marker: {color: '#ff7f0e'}
+            };
+        }
+
+        const layout = {
+            title: `Distribution of ${col}`,
+            paper_bgcolor: "#121212",
+            plot_bgcolor: "#121212",
+            font: {color: "white"}
+        };
+
+        Plotly.newPlot('chart', [trace], layout);
+    }
+
+    // Dropdown change → update chart
+    document.getElementById("columnSelect").addEventListener("change", function() {
+        drawChart(this.value);
+    });
+
+    // Initial chart
+    drawChart(columns[0]);
+
+    // ---------------- Correlation Matrix ----------------
+    function computeCorrelation(data) {
+        const numericCols = columns.filter(c => isNumeric(data[c]));
+        const n = numericCols.length;
+        const corr = Array(n).fill(null).map(() => Array(n).fill(0));
+
+        function mean(arr) {
+            return arr.reduce((a,b)=>a+b,0)/arr.length;
+        }
+        function std(arr) {
+            const m = mean(arr);
+            return Math.sqrt(arr.reduce((a,b)=>a+(b-m)**2,0)/arr.length);
+        }
+        function pearson(x,y) {
+            const mx = mean(x), my = mean(y);
+            let num=0, denx=0, deny=0;
+            for(let i=0;i<x.length;i++){
+                num += (x[i]-mx)*(y[i]-my);
+                denx += (x[i]-mx)**2;
+                deny += (y[i]-my)**2;
+            }
+            return num / Math.sqrt(denx*deny);
+        }
+
+        for(let i=0;i<n;i++){
+            const xi = data[numericCols[i]].map(Number);
+            for(let j=0;j<n;j++){
+                const yj = data[numericCols[j]].map(Number);
+                corr[i][j] = pearson(xi,yj);
+            }
+        }
+        return {corr, cols: numericCols};
+    }
+
+    const {corr, cols: numericCols} = computeCorrelation(df);
+
+    const heatmap = {
+        z: corr,
+        x: numericCols,
+        y: numericCols,
+        type: 'heatmap',
+        colorscale: 'Viridis'
+    };
+
+    const layout2 = {
+        title: "Correlation Matrix",
+        paper_bgcolor: "#121212",
+        plot_bgcolor: "#121212",
+        font: {color: "white"}
+    };
+
+    Plotly.newPlot('corrMatrix', [heatmap], layout2);
+</script>
+{% endblock %}

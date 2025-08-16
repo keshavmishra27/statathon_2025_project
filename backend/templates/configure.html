@@ -62,6 +62,7 @@
                 <option value="iqr">IQR</option>
                 <option value="zscore">Z-score</option>
                 <option value="winsorization">Winsorization</option>
+                <option value="isolationforest">Isolation Forest</option>
             </select>
         </div>
 
@@ -71,6 +72,8 @@
             <div>
                 <input type="checkbox" name="rules" value="consistency"> Consistency
                 <input type="checkbox" name="rules" value="skip-patterns"> Skip Patterns
+                <input type="checkbox" name="rules" value="age_limit"> Age < 120
+                <input type="checkbox" name="rules" value="income_positive"> Income > 0
             </div>
         </div>
 
@@ -80,8 +83,21 @@
             <input type="text" name="weight_column" class="form-control">
         </div>
 
-        <!-- Animated Submit -->
-        <button type="submit" class="btn btn-primary btn-lg shadow-sm animate__animated animate__pulse animate__infinite">🚀 Run Analysis</button>
+        <!-- Action Buttons -->
+        <div class="d-flex justify-content-between mt-4">
+            <!-- Run Analysis -->
+            <button type="submit" name="action" value="analyze"
+                    class="btn btn-primary btn-lg shadow-sm animate__animated animate__pulse animate__infinite">
+                🚀 Run Analysis
+            </button>
+
+            <!-- Visualize Data -->
+            <button type="submit" name="action" value="visualize"
+                    class="btn btn-success btn-lg shadow-sm animate__animated animate__fadeInRight"
+                    style="animation-delay:0.3s">
+                📊 Visualize Data
+            </button>
+        </div>
     </form>
 </div>
 
