@@ -1,132 +1,80 @@
 {% extends "base.html" %}
-{% block title %}Data Visualization{% endblock %}
+{% block title %}AI Visualization{% endblock %}
 
 {% block content %}
-<div class="container mt-5">
-    <h2 class="mb-4 text-light text-center">📊 Interactive Data Visualization</h2>
-    <p class="text-muted text-center">Explore your dataset with interactive charts & correlation heatmap</p>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.css" rel="stylesheet">
 
-    <!-- Dropdown for selecting column -->
-    <div class="mb-4">
-        <label class="form-label text-light">Select Column to Visualize</label>
-        <select id="columnSelect" class="form-control">
-            {% for col in df_json.keys() %}
-                <option value="{{ col }}">{{ col }}</option>
-            {% endfor %}
-        </select>
+<div class="container my-5">
+    <div class="card shadow-lg p-4 bg-dark text-light rounded-4" data-aos="fade-up">
+        <h2 class="text-center mb-4 text-gradient">📈 AI-Augmented Visualization</h2>
+        <p class="lead text-center">
+            Insights and interactive chart for <b>{{ filename }}</b>
+        </p>
+
+        <!-- Interactive Chart -->
+        <div class="mt-4" data-aos="zoom-in">
+            <h4 class="fw-bold text-warning">Interactive Chart</h4>
+            <div id="chart"></div>
+        </div>
+
+        <!-- Raw Insights -->
+        <div class="mt-4" data-aos="fade-right">
+            <h4 class="fw-bold text-info">📊 Column-wise Insights</h4>
+            <ul class="list-group list-group-flush">
+                {% for col, detail in insights.items() %}
+                <li class="list-group-item bg-dark text-light">
+                    <b>{{ col }}</b> → Trend: <span class="text-info">{{ detail.trend }}</span>,
+                    Anomalies:
+                    {% if detail.anomalies %}
+                        <span class="text-danger">{{ detail.anomalies }}</span>
+                    {% else %}
+                        None
+                    {% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <!-- AI Narrative -->
+        <div class="mt-4" data-aos="fade-left">
+            <h4 class="fw-bold text-success">🤖 AI Narrative</h4>
+            <div class="card bg-secondary text-light p-3 rounded-3">
+                <p>{{ ai_narrative }}</p>
+            </div>
+        </div>
+
+        <!-- Data Preview -->
+        <div class="mt-4" data-aos="fade-up">
+            <h4 class="fw-bold text-primary">📋 Data Preview</h4>
+            <div class="table-responsive">
+                {{ table_html|safe }}
+            </div>
+        </div>
+
+        <!-- Back Button -->
+        <div class="mt-4 text-center">
+            <a href="{{ url_for('app_blueprint.upload_page') }}" class="btn btn-light btn-lg">
+                ⬅ Back to Upload
+            </a>
+        </div>
     </div>
-
-    <!-- Graph container -->
-    <div id="chart" style="height:500px;"></div>
-
-    <!-- Correlation Matrix -->
-    <h3 class="mt-5 text-light">🔗 Correlation Matrix</h3>
-    <div id="corrMatrix" style="height:600px;"></div>
 </div>
 
-<!-- Plotly.js -->
 <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.js"></script>
 <script>
-    const df = {{ df_json|tojson }};
-    const columns = Object.keys(df);
+AOS.init({ duration: 1200, once: true });
 
-    // Determine if a column is numeric
-    function isNumeric(arr) {
-        return arr.every(v => !isNaN(Number(v)));
-    }
-
-    // Draw histogram or bar chart depending on type
-    function drawChart(col) {
-        const data = df[col];
-        let trace;
-
-        if (isNumeric(data)) {
-            trace = {
-                x: data.map(Number),
-                type: 'histogram',
-                marker: {color: '#1f77b4'}
-            };
-        } else {
-            // categorical → count frequency
-            const counts = {};
-            data.forEach(v => counts[v] = (counts[v] || 0) + 1);
-            trace = {
-                x: Object.keys(counts),
-                y: Object.values(counts),
-                type: 'bar',
-                marker: {color: '#ff7f0e'}
-            };
-        }
-
-        const layout = {
-            title: `Distribution of ${col}`,
-            paper_bgcolor: "#121212",
-            plot_bgcolor: "#121212",
-            font: {color: "white"}
-        };
-
-        Plotly.newPlot('chart', [trace], layout);
-    }
-
-    // Dropdown change → update chart
-    document.getElementById("columnSelect").addEventListener("change", function() {
-        drawChart(this.value);
-    });
-
-    // Initial chart
-    drawChart(columns[0]);
-
-    // ---------------- Correlation Matrix ----------------
-    function computeCorrelation(data) {
-        const numericCols = columns.filter(c => isNumeric(data[c]));
-        const n = numericCols.length;
-        const corr = Array(n).fill(null).map(() => Array(n).fill(0));
-
-        function mean(arr) {
-            return arr.reduce((a,b)=>a+b,0)/arr.length;
-        }
-        function std(arr) {
-            const m = mean(arr);
-            return Math.sqrt(arr.reduce((a,b)=>a+(b-m)**2,0)/arr.length);
-        }
-        function pearson(x,y) {
-            const mx = mean(x), my = mean(y);
-            let num=0, denx=0, deny=0;
-            for(let i=0;i<x.length;i++){
-                num += (x[i]-mx)*(y[i]-my);
-                denx += (x[i]-mx)**2;
-                deny += (y[i]-my)**2;
-            }
-            return num / Math.sqrt(denx*deny);
-        }
-
-        for(let i=0;i<n;i++){
-            const xi = data[numericCols[i]].map(Number);
-            for(let j=0;j<n;j++){
-                const yj = data[numericCols[j]].map(Number);
-                corr[i][j] = pearson(xi,yj);
-            }
-        }
-        return {corr, cols: numericCols};
-    }
-
-    const {corr, cols: numericCols} = computeCorrelation(df);
-
-    const heatmap = {
-        z: corr,
-        x: numericCols,
-        y: numericCols,
-        type: 'heatmap',
-        colorscale: 'Viridis'
-    };
-
-    const layout2 = {
-        title: "Correlation Matrix",
-        paper_bgcolor: "#121212",
-        plot_bgcolor: "#121212",
-        font: {color: "white"}
-    };
-
-    Plotly.newPlot('corrMatrix', [heatmap], layout2);
+// Parse and render Plotly chart
+var graph = JSON.parse('{{ graphJSON | safe }}');
+Plotly.newPlot('chart', graph.data, graph.layout);
 </script>
+
+<style>
+.text-gradient {
+    background: linear-gradient(to right, #00ff88, #00c6ff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+</style>
 {% endblock %}

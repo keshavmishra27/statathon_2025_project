@@ -16,6 +16,11 @@
                    style="transition: box-shadow 0.3s ease-in-out;">
         </div>
 
+        <!-- AI Suggestions Info -->
+        <div id="ai-suggestions-note" class="alert alert-info mt-3 animate__animated animate__fadeInUp" style="display: none;">
+            🤖 AI suggestions will help auto-map columns and detect missing or numeric fields after upload.
+        </div>
+
         <!-- Preview Section -->
         <div id="preview-section" class="mt-4 animate__animated animate__fadeInUp" style="display: none;">
             <h5 class="mb-3">📄 File Preview:</h5>
@@ -25,7 +30,7 @@
         </div>
 
         <button type="submit" class="btn btn-primary btn-lg mt-4 shadow" data-aos="fade-up" data-aos-delay="200">
-            🚀 Upload &amp; Configure
+            🚀 Upload & AI-Configure
         </button>
     </form>
 </div>
@@ -55,10 +60,11 @@ document.getElementById('file').addEventListener('change', function(event) {
 
     const previewSection = document.getElementById('preview-section');
     const previewTable = document.getElementById('file-preview');
-    previewTable.innerHTML = ""; // Clear old preview
+    const aiNote = document.getElementById('ai-suggestions-note');
 
-    // Show preview section
+    previewTable.innerHTML = ""; // Clear old preview
     previewSection.style.display = 'block';
+    aiNote.style.display = 'block';
 
     // For CSV preview
     if (file.name.endsWith('.csv')) {

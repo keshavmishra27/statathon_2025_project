@@ -1,619 +1,279 @@
 {% extends 'base.html' %}
 
 {% block title %}
-    Welcome to Keshav Coding Market - Stathon 2025
+Keshav Coding Market - Stathon 2025
 {% endblock %}
 
 {% block head %}
-    {{ super() }}
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+{{ super() }}
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+<style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
 
-        body {
-            font-family: 'Arial', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            overflow-x: hidden;
-            position: relative;
-        }
+    body {
+        font-family: 'Arial', sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        overflow-x: hidden;
+        position: relative;
+    }
 
-        /* Animated background particles */
-        .particles {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            z-index: 1;
-        }
+    /* Background Particles */
+    .particles { position: absolute; top:0; left:0; width:100%; height:100%; z-index:1; overflow:hidden; }
+    .particle { position:absolute; border-radius:50%; background: rgba(255,255,255,0.1); animation: float 6s ease-in-out infinite; }
+    @keyframes float { 0%,100%{ transform:translateY(0) rotate(0deg); } 50%{ transform:translateY(-20px) rotate(180deg); } }
 
-        .particle {
-            position: absolute;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 50%;
-            animation: float 6s ease-in-out infinite;
-        }
+    /* Main container */
+    .main-container { position: relative; z-index:2; min-height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; padding:20px; }
 
-        @keyframes float {
-            0%, 100% { transform: translateY(0px) rotate(0deg); }
-            50% { transform: translateY(-20px) rotate(180deg); }
-        }
+    /* Hero Section */
+    .hero h1 {
+        font-size:4rem; font-weight:900; color:white; margin-bottom:1rem; text-shadow:0 10px 30px rgba(0,0,0,0.3);
+        animation: glow 2s ease-in-out infinite alternate; cursor:pointer; transition: all 0.3s ease;
+    }
+    .hero h1:hover { transform:scale(1.05); text-shadow:0 0 50px rgba(255,255,255,0.8); }
+    @keyframes glow { from { text-shadow:0 0 20px rgba(255,255,255,0.5); } to { text-shadow:0 0 30px rgba(255,255,255,0.8); } }
 
-        /* Main container */
-        .main-container {
-            position: relative;
-            z-index: 2;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            text-align: center;
-            padding: 20px;
-        }
+    .hero p { font-size:1.5rem; color: rgba(255,255,255,0.9); margin-bottom:3rem; animation: fadeInUp 1s ease-out 0.5s both; }
 
-        /* Hero section */
-        .hero {
-            max-width: 1200px;
-            width: 100%;
-        }
+    /* CTA Button */
+    .cta-button {
+        position:relative; background:linear-gradient(45deg,#ff6b6b,#4ecdc4); border:none; padding:20px 50px;
+        font-size:1.3rem; font-weight:bold; color:white; border-radius:50px; cursor:pointer; text-decoration:none;
+        box-shadow:0 10px 30px rgba(0,0,0,0.3); overflow:hidden; display:inline-block; transition:all 0.3s ease;
+    }
+    .cta-button::before {
+        content:''; position:absolute; top:0; left:-100%; width:100%; height:100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent); transition:left 0.5s;
+    }
+    .cta-button:hover::before { left:100%; }
+    .cta-button:hover { transform:translateY(-5px) scale(1.05); box-shadow:0 20px 40px rgba(0,0,0,0.4); }
+    .cta-button:active { transform:translateY(-2px) scale(1.02); }
 
-        .hero h1 {
-            font-size: 4rem;
-            font-weight: 900;
-            color: white;
-            margin-bottom: 1rem;
-            text-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-            animation: glow 2s ease-in-out infinite alternate;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
+    /* Feature Cards */
+    .features { display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:2rem; margin-top:4rem; max-width:1000px; width:100%; }
+    .feature-card {
+        background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border-radius:20px; padding:2rem; cursor:pointer; position:relative; overflow:hidden;
+        border: 1px solid rgba(255,255,255,0.2); transition: all 0.3s ease;
+    }
+    .feature-card::before { content:''; position:absolute; inset:0; background:linear-gradient(45deg, rgba(255,107,107,0.1), rgba(78,205,196,0.1)); opacity:0; transition:opacity 0.3s ease; }
+    .feature-card:hover::before { opacity:1; }
+    .feature-card:hover { transform:translateY(-10px) rotate(2deg); box-shadow:0 20px 40px rgba(0,0,0,0.3); }
+    .feature-icon { font-size:3rem; margin-bottom:1rem; transition: all 0.3s ease; position:relative; z-index:1; }
+    .feature-card:hover .feature-icon { transform:scale(1.2) rotate(10deg); }
+    .feature-card h5 { color:white; font-size:1.3rem; margin-bottom:1rem; z-index:1; position:relative; }
+    .feature-card p { color:rgba(255,255,255,0.8); opacity:0; transform:translateY(20px); transition: all 0.3s ease; position:relative; z-index:1; }
+    .feature-card:hover p { opacity:1; transform:translateY(0); }
 
-        .hero h1:hover {
-            transform: scale(1.05);
-            text-shadow: 0 0 50px rgba(255, 255, 255, 0.8);
-        }
+    /* Progress Bar */
+    .progress-container { margin-top:3rem; max-width:600px; width:100%; }
+    .progress-bar { width:100%; height:6px; background: rgba(255,255,255,0.2); border-radius:3px; overflow:hidden; }
+    .progress-fill { height:100%; width:0%; border-radius:3px; background:linear-gradient(90deg,#ff6b6b,#4ecdc4); animation: fillProgress 3s ease-in-out infinite; }
+    @keyframes fillProgress { 0%,100%{ width:0%; } 50%{ width:100%; } }
 
-        @keyframes glow {
-            from { text-shadow: 0 0 20px rgba(255, 255, 255, 0.5); }
-            to { text-shadow: 0 0 30px rgba(255, 255, 255, 0.8); }
-        }
+    /* Floating Action Button */
+    .fab { position:fixed; bottom:30px; right:30px; width:60px; height:60px; border-radius:50%; background:linear-gradient(45deg,#ff6b6b,#4ecdc4); font-size:1.5rem; color:white; cursor:pointer; box-shadow:0 5px 20px rgba(0,0,0,0.3); z-index:1000; transition: all 0.3s ease; }
+    .fab:hover { transform:scale(1.1) rotate(90deg); box-shadow:0 10px 30px rgba(0,0,0,0.4); }
 
-        .hero p {
-            font-size: 1.5rem;
-            color: rgba(255, 255, 255, 0.9);
-            margin-bottom: 3rem;
-            animation: fadeInUp 1s ease-out 0.5s both;
-        }
+    /* Animations */
+    @keyframes fadeInUp { from { opacity:0; transform:translateY(50px); } to { opacity:1; transform:translateY(0); } }
 
-        /* Interactive button */
-        .cta-button {
-            position: relative;
-            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
-            border: none;
-            padding: 20px 50px;
-            font-size: 1.3rem;
-            font-weight: bold;
-            color: white;
-            border-radius: 50px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-decoration: none;
-            display: inline-block;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-            overflow: hidden;
-        }
+    /* Responsive */
+    @media(max-width:768px) {
+        .hero h1{ font-size:2.5rem; }
+        .hero p{ font-size:1.2rem; }
+        .cta-button{ padding:15px 30px; font-size:1.1rem; }
+        .features{ grid-template-columns:1fr; gap:1.5rem; }
+    }
 
-        .cta-button::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-            transition: left 0.5s;
-        }
+    /* Ripple */
+    .ripple { position:absolute; border-radius:50%; background:rgba(255,255,255,0.6); transform:scale(0); animation:ripple-animation 0.6s linear; pointer-events:none; }
+    @keyframes ripple-animation { to { transform:scale(4); opacity:0; } }
 
-        .cta-button:hover::before {
-            left: 100%;
-        }
-
-        .cta-button:hover {
-            transform: translateY(-5px) scale(1.05);
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
-        }
-
-        .cta-button:active {
-            transform: translateY(-2px) scale(1.02);
-        }
-
-        /* Feature cards */
-        .features {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 2rem;
-            margin-top: 4rem;
-            width: 100%;
-            max-width: 1000px;
-        }
-
-        .feature-card {
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 20px;
-            padding: 2rem;
-            transition: all 0.3s ease;
-            cursor: pointer;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .feature-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: linear-gradient(45deg, rgba(255, 107, 107, 0.1), rgba(78, 205, 196, 0.1));
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
-
-        .feature-card:hover::before {
-            opacity: 1;
-        }
-
-        .feature-card:hover {
-            transform: translateY(-10px) rotate(2deg);
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-        }
-
-        .feature-icon {
-            font-size: 3rem;
-            margin-bottom: 1rem;
-            transition: all 0.3s ease;
-            position: relative;
-            z-index: 1;
-        }
-
-        .feature-card:hover .feature-icon {
-            transform: scale(1.2) rotate(10deg);
-        }
-
-        .feature-card h5 {
-            color: white;
-            font-size: 1.3rem;
-            margin-bottom: 1rem;
-            position: relative;
-            z-index: 1;
-        }
-
-        .feature-card p {
-            color: rgba(255, 255, 255, 0.8);
-            opacity: 0;
-            transform: translateY(20px);
-            transition: all 0.3s ease;
-            position: relative;
-            z-index: 1;
-        }
-
-        .feature-card:hover p {
-            opacity: 1;
-            transform: translateY(0);
-        }
-
-        /* Progress bar animation */
-        .progress-container {
-            margin-top: 3rem;
-            width: 100%;
-            max-width: 600px;
-        }
-
-        .progress-bar {
-            width: 100%;
-            height: 6px;
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 3px;
-            overflow: hidden;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #ff6b6b, #4ecdc4);
-            width: 0%;
-            border-radius: 3px;
-            animation: fillProgress 3s ease-in-out infinite;
-        }
-
-        @keyframes fillProgress {
-            0%, 100% { width: 0%; }
-            50% { width: 100%; }
-        }
-
-        /* Floating action button */
-        .fab {
-            position: fixed;
-            bottom: 30px;
-            right: 30px;
-            width: 60px;
-            height: 60px;
-            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
-            border: none;
-            border-radius: 50%;
-            color: white;
-            font-size: 1.5rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
-            z-index: 1000;
-        }
-
-        .fab:hover {
-            transform: scale(1.1) rotate(90deg);
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
-        }
-
-        /* Responsive design */
-        @media (max-width: 768px) {
-            .hero h1 {
-                font-size: 2.5rem;
-            }
-            
-            .hero p {
-                font-size: 1.2rem;
-            }
-            
-            .cta-button {
-                padding: 15px 30px;
-                font-size: 1.1rem;
-            }
-            
-            .features {
-                grid-template-columns: 1fr;
-                gap: 1.5rem;
-            }
-        }
-
-        /* Animation classes */
-        .fade-in {
-            animation: fadeInUp 1s ease-out both;
-        }
-
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(50px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        /* Click ripple effect */
-        .ripple {
-            position: absolute;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.6);
-            transform: scale(0);
-            animation: ripple-animation 0.6s linear;
-            pointer-events: none;
-        }
-
-        @keyframes ripple-animation {
-            to {
-                transform: scale(4);
-                opacity: 0;
-            }
-        }
-
-        /* Notification styles */
-        @keyframes slideInRight {
-            from {
-                transform: translateX(100%);
-                opacity: 0;
-            }
-            to {
-                transform: translateX(0);
-                opacity: 1;
-            }
-        }
-    </style>
+    /* Notifications */
+    @keyframes slideInRight { from { transform:translateX(100%); opacity:0; } to { transform:translateX(0); opacity:1; } }
+</style>
 {% endblock %}
 
 {% block content %}
-    <!-- Animated background particles -->
-    <div class="particles" id="particles"></div>
+<div class="particles" id="particles"></div>
 
-    <div class="main-container">
-        <div class="hero">
-            <h1 id="main-title">🚀 Stathon 2025 Project</h1>
-            <p class="fade-in">Transforming data into insights with style and innovation</p>
-            
-            <a href="{{ url_for('app_blueprint.upload_page') }}" class="cta-button" id="get-started-btn">
-                <i class="fas fa-rocket"></i> Get Started
-            </a>
+<div class="main-container">
+    <div class="hero">
+        <h1 id="main-title">🚀 Stathon 2025 Project</h1>
+        <p class="fade-in">Transforming data into insights with style and innovation</p>
 
-            <div class="progress-container fade-in">
-                <div class="progress-bar">
-                    <div class="progress-fill"></div>
-                </div>
-                <p style="color: white; margin-top: 10px; font-size: 0.9rem;">Loading awesome features...</p>
+        <a href="{{ url_for('app_blueprint.upload_page') }}" class="cta-button" id="get-started-btn">
+            <i class="fas fa-rocket"></i> Get Started
+        </a>
+
+        <div class="progress-container fade-in">
+            <div class="progress-bar">
+                <div class="progress-fill"></div>
             </div>
-        </div>
-
-        <div class="features fade-in">
-            <div class="feature-card" data-feature="upload">
-                <div class="feature-icon" style="color: #4ecdc4;">
-                    <i class="fas fa-cloud-upload-alt"></i>
-                </div>
-                <h5>Smart Upload</h5>
-                <p>Drag, drop, and upload your files with intelligent processing and real-time validation.</p>
-            </div>
-
-            <div class="feature-card" data-feature="analyze">
-                <div class="feature-icon" style="color: #ff6b6b;">
-                    <i class="fas fa-brain"></i>
-                </div>
-                <h5>AI Analysis</h5>
-                <p>Advanced algorithms transform your raw data into meaningful insights and visualizations.</p>
-            </div>
-
-            <div class="feature-card" data-feature="leaderboard">
-                <div class="feature-icon" style="color: #ffd93d;">
-                    <i class="fas fa-trophy"></i>
-                </div>
-                <h5>Live Rankings</h5>
-                <p>Compete with others in real-time leaderboards and track your performance metrics.</p>
-            </div>
+            <p style="color:white; margin-top:10px; font-size:0.9rem;">Loading awesome features...</p>
         </div>
     </div>
 
-    <!-- Floating action button -->
-    <button class="fab" id="fab-btn">
-        <i class="fas fa-question"></i>
-    </button>
+    <div class="features fade-in">
+        <div class="feature-card" data-feature="upload">
+            <div class="feature-icon" style="color:#4ecdc4;"><i class="fas fa-cloud-upload-alt"></i></div>
+            <h5>Smart Upload</h5>
+            <p>Drag, drop, and upload your files with intelligent processing and real-time validation.</p>
+        </div>
+
+        <div class="feature-card" data-feature="analyze">
+            <div class="feature-icon" style="color:#ff6b6b;"><i class="fas fa-brain"></i></div>
+            <h5>AI Analysis</h5>
+            <p>Advanced algorithms transform your raw data into meaningful insights and visualizations.</p>
+        </div>
+
+        <div class="feature-card" data-feature="leaderboard">
+            <div class="feature-icon" style="color:#ffd93d;"><i class="fas fa-trophy"></i></div>
+            <h5>Live Rankings</h5>
+            <p>Compete with others in real-time leaderboards and track your performance metrics.</p>
+        </div>
+    </div>
+</div>
+
+<button class="fab" id="fab-btn"><i class="fas fa-question"></i></button>
 {% endblock %}
 
 {% block scripts %}
-    {{ super() }}
-    <script>
-        // Create animated background particles
-        function createParticles() {
-            const particlesContainer = document.getElementById('particles');
-            const particleCount = 50;
-
-            for (let i = 0; i < particleCount; i++) {
-                const particle = document.createElement('div');
-                particle.className = 'particle';
-                particle.style.left = Math.random() * 100 + '%';
-                particle.style.top = Math.random() * 100 + '%';
-                particle.style.width = Math.random() * 10 + 5 + 'px';
-                particle.style.height = particle.style.width;
-                particle.style.animationDelay = Math.random() * 6 + 's';
-                particle.style.animationDuration = (Math.random() * 10 + 5) + 's';
-                particlesContainer.appendChild(particle);
-            }
+{{ super() }}
+<script>
+    /* Particle generation */
+    function createParticles() {
+        const container = document.getElementById('particles');
+        for(let i=0;i<50;i++){
+            const p=document.createElement('div');
+            p.className='particle';
+            p.style.left=Math.random()*100+'%';
+            p.style.top=Math.random()*100+'%';
+            const size = Math.random()*10+5;
+            p.style.width = p.style.height = size+'px';
+            p.style.animationDelay=Math.random()*6+'s';
+            p.style.animationDuration=(Math.random()*10+5)+'s';
+            container.appendChild(p);
         }
+    }
 
-        // Add ripple effect to buttons
-        function createRipple(event) {
-            const button = event.currentTarget;
-            const rect = button.getBoundingClientRect();
-            const ripple = document.createElement('span');
-            const size = Math.max(rect.width, rect.height);
-            const x = event.clientX - rect.left - size / 2;
-            const y = event.clientY - rect.top - size / 2;
+    /* Ripple effect */
+    function createRipple(e){
+        const btn=e.currentTarget;
+        const rect=btn.getBoundingClientRect();
+        const ripple=document.createElement('span');
+        const size=Math.max(rect.width,rect.height);
+        const x=e.clientX-rect.left-size/2;
+        const y=e.clientY-rect.top-size/2;
+        ripple.style.width=ripple.style.height=size+'px';
+        ripple.style.left=x+'px';
+        ripple.style.top=y+'px';
+        ripple.classList.add('ripple');
+        btn.appendChild(ripple);
+        setTimeout(()=>ripple.remove(),600);
+    }
 
-            ripple.style.width = ripple.style.height = size + 'px';
-            ripple.style.left = x + 'px';
-            ripple.style.top = y + 'px';
-            ripple.classList.add('ripple');
+    /* Hero interactions */
+    function initTitleEffects() {
+        const title=document.getElementById('main-title');
+        const colors=['#ff6b6b','#4ecdc4','#ffd93d','#a8e6cf','#ff8b94'];
+        let idx=0;
+        title.addEventListener('click',()=>{
+            title.style.color=colors[idx%colors.length];
+            title.style.transform='scale(1.1) rotate(5deg)';
+            idx++;
+            setTimeout(()=>{title.style.color='white'; title.style.transform='scale(1) rotate(0deg)';},500);
+        });
+    }
 
-            button.appendChild(ripple);
-
-            setTimeout(() => {
-                ripple.remove();
-            }, 600);
-        }
-
-        // Add interactive title effects
-        function initTitleEffects() {
-            const title = document.getElementById('main-title');
-            const colors = ['#ff6b6b', '#4ecdc4', '#ffd93d', '#a8e6cf', '#ff8b94'];
-            let colorIndex = 0;
-
-            title.addEventListener('click', function() {
-                this.style.color = colors[colorIndex % colors.length];
-                this.style.transform = 'scale(1.1) rotate(5deg)';
-                colorIndex++;
-                
-                setTimeout(() => {
-                    this.style.color = 'white';
-                    this.style.transform = 'scale(1) rotate(0deg)';
-                }, 500);
-            });
-        }
-
-        // Add feature card interactions
-        function initFeatureCards() {
-            const cards = document.querySelectorAll('.feature-card');
-            
-            cards.forEach(card => {
-                card.addEventListener('click', function() {
-                    const feature = this.dataset.feature;
-                    
-                    // Add a pulsing effect
-                    this.style.animation = 'none';
-                    this.style.transform = 'scale(1.05)';
-                    this.style.boxShadow = '0 0 30px rgba(255, 255, 255, 0.5)';
-                    
-                    setTimeout(() => {
-                        this.style.transform = '';
-                        this.style.boxShadow = '';
-                    }, 300);
-                    
-                    // Show feature info
-                    showFeatureModal(feature);
-                });
-            });
-        }
-
-        // Show feature modal (simplified version)
-        function showFeatureModal(feature) {
-            const messages = {
-                upload: "🚀 Ready to upload your data files! Our smart system handles CSV, JSON, and Excel formats.",
-                analyze: "🧠 Our AI will analyze your data patterns and generate beautiful visualizations!",
-                leaderboard: "🏆 Compete with other data scientists and climb the rankings!"
-            };
-            
-            // Create a simple notification
-            const notification = document.createElement('div');
-            notification.style.cssText = `
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
-                color: white;
-                padding: 15px 20px;
-                border-radius: 10px;
-                z-index: 1000;
-                animation: slideInRight 0.5s ease-out;
-                max-width: 300px;
-            `;
-            notification.textContent = messages[feature];
-            document.body.appendChild(notification);
-            
-            setTimeout(() => {
-                notification.remove();
-            }, 3000);
-        }
-
-        // Add FAB functionality
-        function initFAB() {
-            const fab = document.getElementById('fab-btn');
-            const tips = [
-                "💡 Tip: Try clicking on the title!",
-                "🎯 Click on feature cards to learn more!",
-                "✨ Hover over elements to see magic happen!",
-                "🚀 Ready to transform your data?",
-                "📊 Upload files up to 100MB!"
-            ];
-            let tipIndex = 0;
-            
-            fab.addEventListener('click', function() {
-                const notification = document.createElement('div');
-                notification.style.cssText = `
-                    position: fixed;
-                    bottom: 100px;
-                    right: 20px;
-                    background: rgba(0, 0, 0, 0.8);
-                    color: white;
-                    padding: 10px 15px;
-                    border-radius: 20px;
-                    font-size: 0.9rem;
-                    z-index: 1000;
-                    animation: fadeInUp 0.3s ease-out;
-                    max-width: 250px;
-                `;
-                notification.textContent = tips[tipIndex % tips.length];
-                document.body.appendChild(notification);
-                tipIndex++;
-                
-                setTimeout(() => {
-                    notification.remove();
-                }, 2500);
-            });
-        }
-
-        // Mouse follower effect
-        function initMouseFollower() {
-            let mouseX = 0, mouseY = 0;
-            let followerX = 0, followerY = 0;
-            
-            document.addEventListener('mousemove', (e) => {
-                mouseX = e.clientX;
-                mouseY = e.clientY;
-            });
-            
-            function animate() {
-                followerX += (mouseX - followerX) * 0.1;
-                followerY += (mouseY - followerY) * 0.1;
-                
-                // Move some particles based on mouse position
-                const particles = document.querySelectorAll('.particle');
-                particles.forEach((particle, index) => {
-                    if (index % 5 === 0) {
-                        const rect = particle.getBoundingClientRect();
-                        const distance = Math.sqrt(
-                            Math.pow(followerX - rect.left, 2) + 
-                            Math.pow(followerY - rect.top, 2)
-                        );
-                        
-                        if (distance < 100) {
-                            const force = (100 - distance) / 100;
-                            particle.style.transform += ` translate(${force * 10}px, ${force * 10}px)`;
-                        }
-                    }
-                });
-                
-                requestAnimationFrame(animate);
-            }
-            animate();
-        }
-
-        // Initialize everything when page loads
-        document.addEventListener('DOMContentLoaded', function() {
-            createParticles();
-            initTitleEffects();
-            initFeatureCards();
-            initFAB();
-            initMouseFollower();
-            
-            // Add ripple effect to interactive elements
-            document.querySelectorAll('.cta-button, .feature-card, .fab').forEach(element => {
-                element.addEventListener('click', createRipple);
-            });
-            
-            // Add fade-in animation to elements
-            const observer = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting) {
-                        entry.target.style.animationDelay = Math.random() * 0.5 + 's';
-                        entry.target.classList.add('fade-in');
-                    }
-                });
-            });
-            
-            document.querySelectorAll('.feature-card').forEach(card => {
-                observer.observe(card);
+    /* Feature cards */
+    function initFeatureCards(){
+        document.querySelectorAll('.feature-card').forEach(card=>{
+            card.addEventListener('click',function(){
+                const feature=this.dataset.feature;
+                this.style.animation='none';
+                this.style.transform='scale(1.05)';
+                this.style.boxShadow='0 0 30px rgba(255,255,255,0.5)';
+                setTimeout(()=>{this.style.transform=''; this.style.boxShadow='';},300);
+                showFeatureModal(feature);
             });
         });
+    }
 
-        // Add keyboard shortcuts
-        document.addEventListener('keydown', function(e) {
-            if (e.key === ' ') { // Spacebar
-                e.preventDefault();
-                document.getElementById('get-started-btn').click();
-            } else if (e.key === '1') {
-                const uploadCard = document.querySelector('[data-feature="upload"]');
-                if (uploadCard) uploadCard.click();
-            } else if (e.key === '2') {
-                const analyzeCard = document.querySelector('[data-feature="analyze"]');
-                if (analyzeCard) analyzeCard.click();
-            } else if (e.key === '3') {
-                const leaderboardCard = document.querySelector('[data-feature="leaderboard"]');
-                if (leaderboardCard) leaderboardCard.click();
-            }
+    function showFeatureModal(feature){
+        const messages={
+            upload:"🚀 Ready to upload your data files! Our smart system handles CSV, JSON, and Excel formats.",
+            analyze:"🧠 Our AI will analyze your data patterns and generate beautiful visualizations!",
+            leaderboard:"🏆 Compete with other data scientists and climb the rankings!"
+        };
+        const notif=document.createElement('div');
+        notif.style.cssText=`position:fixed; top:20px; right:20px; background:linear-gradient(45deg,#ff6b6b,#4ecdc4); color:white; padding:15px 20px; border-radius:10px; z-index:1000; animation: slideInRight 0.5s ease-out; max-width:300px;`;
+        notif.textContent=messages[feature];
+        document.body.appendChild(notif);
+        setTimeout(()=>notif.remove(),3000);
+    }
+
+    /* FAB */
+    function initFAB(){
+        const fab=document.getElementById('fab-btn');
+        const tips=[
+            "💡 Tip: Try clicking on the title!",
+            "🎯 Click on feature cards to learn more!",
+            "✨ Hover over elements to see magic happen!",
+            "🚀 Ready to transform your data?",
+            "📊 Upload files up to 100MB!"
+        ];
+        let idx=0;
+        fab.addEventListener('click',()=>{
+            const notif=document.createElement('div');
+            notif.style.cssText=`position:fixed; bottom:100px; right:20px; background:rgba(0,0,0,0.8); color:white; padding:10px 15px; border-radius:20px; font-size:0.9rem; z-index:1000; animation: fadeInUp 0.3s ease-out; max-width:250px;`;
+            notif.textContent=tips[idx%tips.length]; idx++;
+            document.body.appendChild(notif);
+            setTimeout(()=>notif.remove(),2500);
         });
-    </script>
+    }
+
+    /* Mouse follower */
+    function initMouseFollower(){
+        let mouseX=0,mouseY=0,followerX=0,followerY=0;
+        document.addEventListener('mousemove',e=>{ mouseX=e.clientX; mouseY=e.clientY; });
+        function animate(){
+            followerX += (mouseX - followerX)*0.1;
+            followerY += (mouseY - followerY)*0.1;
+            document.querySelectorAll('.particle').forEach((p,i)=>{
+                if(i%5===0){
+                    const rect=p.getBoundingClientRect();
+                    const dist=Math.hypot(followerX-rect.left,followerY-rect.top);
+                    if(dist<100){ const force=(100-dist)/100; p.style.transform+=` translate(${force*10}px,${force*10}px)`; }
+                }
+            });
+            requestAnimationFrame(animate);
+        }
+        animate();
+    }
+
+    document.addEventListener('DOMContentLoaded',()=>{
+        createParticles();
+        initTitleEffects();
+        initFeatureCards();
+        initFAB();
+        initMouseFollower();
+        document.querySelectorAll('.cta-button, .feature-card, .fab').forEach(el=>el.addEventListener('click',createRipple));
+
+        // Fade-in observer
+        const observer = new IntersectionObserver(entries=>{
+            entries.forEach(entry=>{ if(entry.isIntersecting){ entry.target.style.animationDelay=Math.random()*0.5+'s'; entry.target.classList.add('fade-in'); } });
+        });
+        document.querySelectorAll('.feature-card').forEach(card=>observer.observe(card));
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown',e=>{
+        if(e.key===' '){ e.preventDefault(); document.getElementById('get-started-btn').click(); }
+        else if(e.key==='1'){ document.querySelector('[data-feature="upload"]')?.click(); }
+        else if(e.key==='2'){ document.querySelector('[data-feature="analyze"]')?.click(); }
+        else if(e.key==='3'){ document.querySelector('[data-feature="leaderboard"]')?.click(); }
+    });
+</script>
 {% endblock %}

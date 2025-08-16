@@ -1,104 +1,126 @@
 {% extends "base.html" %}
-{% block title %}Analysis Result{% endblock %}
+{% block title %}AI Pipeline Result{% endblock %}
 
 {% block content %}
 <link href="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.css" rel="stylesheet">
+
 <div class="container my-5">
+    <div class="card shadow-lg p-4 bg-dark text-light rounded-4" data-aos="fade-up">
+        <h2 class="text-center mb-4 text-gradient">🤖 AI-Enhanced Pipeline Result</h2>
+        <p class="lead text-center">
+            Summary and insights for <b>{{ filename }}</b>
+        </p>
 
-    <h2 class="mb-4 text-center" data-aos="fade-down">⚡ AI-Enhanced Analysis Result</h2>
-    <p class="lead text-center mb-5" data-aos="fade-up">
-        Your file has been processed with the full AI-based pipeline, including cleaning, validation, and statistical analysis.
-    </p>
-
-    <!-- Download Button -->
-    <div class="text-center mb-4" data-aos="zoom-in">
-        <a href="{{ url_for('app_blueprint.download_pdf', filename=filename) }}" class="btn btn-primary btn-lg shadow">
-            📄 Download Processed PDF
-        </a>
-    </div>
-
-    <!-- Workflow Log -->
-    {% if workflow_log %}
-    <div class="card mb-4 shadow-sm" data-aos="fade-right">
-        <div class="card-header bg-dark text-white">
-            <h5 class="mb-0">Workflow Log</h5>
-        </div>
-        <div class="card-body">
-            <ul class="mb-0">
-                {% for step in workflow_log %}
-                <li>{{ step }}</li>
+        <!-- Dataset Overview -->
+        {% if dataset_summary %}
+        <div class="mt-4" data-aos="fade-up">
+            <h4 class="fw-bold text-success">📊 Dataset Overview</h4>
+            <ul class="list-group list-group-flush">
+                {% for k, v in dataset_summary.items() %}
+                <li class="list-group-item bg-dark text-light">
+                    <b>{{ k }}:</b> {{ v }}
+                </li>
                 {% endfor %}
             </ul>
         </div>
-    </div>
-    {% endif %}
+        {% endif %}
 
-    <!-- Weighted Statistics -->
-    {% if weighted_stats %}
-    <div class="card mb-4 shadow" data-aos="fade-left">
-        <div class="card-header bg-info text-white">
-            <h5 class="mb-0">Weighted Statistics</h5>
-        </div>
-        <div class="card-body">
-            <ul class="list-unstyled mb-0">
-                {% for key, value in weighted_stats.items() %}
-                <li><strong>{{ key }}:</strong> {{ value }}</li>
+        <!-- Workflow Log -->
+        <div class="mt-4" data-aos="fade-right">
+            <h4 class="fw-bold text-info">📝 Workflow Log</h4>
+            <ul class="list-group list-group-flush">
+                {% for log in workflow_log %}
+                <li class="list-group-item bg-dark text-light">{{ log }}</li>
                 {% endfor %}
             </ul>
         </div>
-    </div>
-    {% endif %}
 
-    <!-- AI Summary -->
-    {% if ai_summary %}
-    <div class="card mb-4 shadow" data-aos="fade-up">
-        <div class="card-header bg-success text-white">
-            <h5 class="mb-0">AI Summary (Numeric Columns)</h5>
+        <!-- Weighted Stats -->
+        {% if weighted_stats %}
+        <div class="mt-4" data-aos="fade-left">
+            <h4 class="fw-bold text-warning">📊 Weighted Stats</h4>
+            <ul class="list-group list-group-flush">
+                {% for k, v in weighted_stats.items() %}
+                <li class="list-group-item bg-dark text-light">
+                    <b>{{ k }}:</b> {{ v }}
+                </li>
+                {% endfor %}
+            </ul>
         </div>
-        <div class="card-body">
-            <table class="table table-bordered table-striped mb-0">
-                <thead class="table-dark">
-                    <tr>
-                        <th>Column</th>
-                        <th>Mean</th>
-                        <th>Std Dev</th>
-                        <th>Missing Values</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for col, stats in ai_summary.items() %}
-                    <tr>
-                        <td>{{ col }}</td>
-                        <td>{{ stats.mean }}</td>
-                        <td>{{ stats.std }}</td>
-                        <td>{{ stats.missing }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        {% endif %}
+
+        <!-- AI Summary Table -->
+        <div class="mt-4" data-aos="fade-up">
+            <h4 class="fw-bold text-primary">📋 AI Column Insights</h4>
+            <div class="table-responsive">
+                <table class="table table-striped table-dark table-bordered align-middle">
+                    <thead>
+                        <tr>
+                            <th>Column</th>
+                            <th>Type</th>
+                            <th>Mean</th>
+                            <th>Std</th>
+                            <th>Unique</th>
+                            <th>Mode</th>
+                            <th>Missing</th>
+                            <th>AI Insight</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for col, stats in ai_summary.items() %}
+                        <tr>
+                            <td><b>{{ col }}</b></td>
+                            <td>{{ stats.type }}</td>
+                            <td>{{ stats.mean if stats.type == 'numeric' else '-' }}</td>
+                            <td>{{ stats.std if stats.type == 'numeric' else '-' }}</td>
+                            <td>{{ stats.unique if stats.type == 'categorical' else '-' }}</td>
+                            <td>{{ stats.mode if stats.type == 'categorical' else '-' }}</td>
+                            <td>{{ stats.missing }}</td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-info" type="button" data-bs-toggle="collapse" data-bs-target="#insight{{ loop.index }}" aria-expanded="false" aria-controls="insight{{ loop.index }}">
+                                    💡 View Insight
+                                </button>
+                                <div class="collapse mt-2" id="insight{{ loop.index }}">
+                                    <div class="card card-body bg-secondary text-light border-0">
+                                        {{ stats.insight }}
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Data Preview -->
+        <div class="mt-4" data-aos="fade-up">
+            <h4 class="fw-bold text-success">📂 Data Preview</h4>
+            <div class="table-responsive">
+                {{ table_html|safe }}
+            </div>
+        </div>
+
+        <!-- Visualize Button -->
+        <div class="mt-4 text-center" data-aos="zoom-in">
+            <a href="{{ url_for('app_blueprint.visualize_page', filename=processed_filename) }}" 
+               class="btn btn-primary btn-lg">
+               📊 Visualize AI Insights
+            </a>
         </div>
     </div>
-    {% endif %}
-
-    <!-- Data Table -->
-    {% if table_html %}
-    <div class="table-responsive shadow-glow mb-4" data-aos="fade-up">
-        {{ table_html | safe }}
-    </div>
-    {% endif %}
-
-    <!-- Info Note -->
-    <div class="alert alert-secondary shadow-sm" role="alert" data-aos="fade-in">
-        <strong>Note:</strong> The above report includes AI-powered imputation, outlier detection, and rule-based checks. All processing steps are documented in the workflow log.
-    </div>
-
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.js"></script>
 <script>
-    AOS.init({
-        duration: 800,
-        once: true
-    });
+AOS.init({ duration: 1200, once: true });
 </script>
+
+<style>
+.text-gradient {
+    background: linear-gradient(to right, #00ff88, #00c6ff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+</style>
 {% endblock %}
