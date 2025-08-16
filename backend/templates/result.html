@@ -2,18 +2,24 @@
 {% block title %}Analysis Result{% endblock %}
 
 {% block content %}
-<div class="container">
-    <h2 class="mb-4">AI-Enhanced Analysis Result</h2>
-    <p class="lead">Your file has been processed with the full AI-based pipeline, including cleaning, validation, and statistical analysis.</p>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.css" rel="stylesheet">
+<div class="container my-5">
+
+    <h2 class="mb-4 text-center" data-aos="fade-down">⚡ AI-Enhanced Analysis Result</h2>
+    <p class="lead text-center mb-5" data-aos="fade-up">
+        Your file has been processed with the full AI-based pipeline, including cleaning, validation, and statistical analysis.
+    </p>
 
     <!-- Download Button -->
-    <a href="{{ url_for('app_blueprint.download_pdf', filename=filename) }}" class="btn btn-primary mb-3">
-        📄 Download Processed PDF
-    </a>
+    <div class="text-center mb-4" data-aos="zoom-in">
+        <a href="{{ url_for('app_blueprint.download_pdf', filename=filename) }}" class="btn btn-primary btn-lg shadow">
+            📄 Download Processed PDF
+        </a>
+    </div>
 
     <!-- Workflow Log -->
     {% if workflow_log %}
-    <div class="card mb-4 shadow-sm">
+    <div class="card mb-4 shadow-sm" data-aos="fade-right">
         <div class="card-header bg-dark text-white">
             <h5 class="mb-0">Workflow Log</h5>
         </div>
@@ -29,7 +35,7 @@
 
     <!-- Weighted Statistics -->
     {% if weighted_stats %}
-    <div class="card mb-4">
+    <div class="card mb-4 shadow" data-aos="fade-left">
         <div class="card-header bg-info text-white">
             <h5 class="mb-0">Weighted Statistics</h5>
         </div>
@@ -43,16 +49,56 @@
     </div>
     {% endif %}
 
+    <!-- AI Summary -->
+    {% if ai_summary %}
+    <div class="card mb-4 shadow" data-aos="fade-up">
+        <div class="card-header bg-success text-white">
+            <h5 class="mb-0">AI Summary (Numeric Columns)</h5>
+        </div>
+        <div class="card-body">
+            <table class="table table-bordered table-striped mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Column</th>
+                        <th>Mean</th>
+                        <th>Std Dev</th>
+                        <th>Missing Values</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for col, stats in ai_summary.items() %}
+                    <tr>
+                        <td>{{ col }}</td>
+                        <td>{{ stats.mean }}</td>
+                        <td>{{ stats.std }}</td>
+                        <td>{{ stats.missing }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Data Table -->
     {% if table_html %}
-    <div class="table-responsive shadow-glow mb-4">
+    <div class="table-responsive shadow-glow mb-4" data-aos="fade-up">
         {{ table_html | safe }}
     </div>
     {% endif %}
 
     <!-- Info Note -->
-    <div class="alert alert-secondary" role="alert">
+    <div class="alert alert-secondary shadow-sm" role="alert" data-aos="fade-in">
         <strong>Note:</strong> The above report includes AI-powered imputation, outlier detection, and rule-based checks. All processing steps are documented in the workflow log.
     </div>
+
 </div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.js"></script>
+<script>
+    AOS.init({
+        duration: 800,
+        once: true
+    });
+</script>
 {% endblock %}
