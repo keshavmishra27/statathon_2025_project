@@ -16,12 +16,15 @@
         <div class="mt-4" data-aos="fade-up">
             <h4 class="fw-bold text-success">📊 Dataset Overview</h4>
             <ul class="list-group list-group-flush">
-                {% for k, v in dataset_summary.items() %}
-                <li class="list-group-item bg-dark text-light">
-                    <b>{{ k }}:</b> {{ v }}
-                </li>
-                {% endfor %}
+                <li class="list-group-item bg-dark text-light"><b>Rows:</b> {{ dataset_summary.num_rows }}</li>
+                <li class="list-group-item bg-dark text-light"><b>Columns:</b> {{ dataset_summary.num_cols }}</li>
+                <li class="list-group-item bg-dark text-light"><b>Numeric Columns:</b> {{ dataset_summary.num_numeric }}</li>
+                <li class="list-group-item bg-dark text-light"><b>Categorical Columns:</b> {{ dataset_summary.num_categorical }}</li>
+                <li class="list-group-item bg-dark text-light"><b>Total Missing Values:</b> {{ dataset_summary.missing_total }}</li>
             </ul>
+            <div class="alert alert-info mt-3" role="alert">
+                💡 <b>AI Insight:</b> {{ dataset_summary.insight }}
+            </div>
         </div>
         {% endif %}
 
@@ -39,13 +42,16 @@
         {% if weighted_stats %}
         <div class="mt-4" data-aos="fade-left">
             <h4 class="fw-bold text-warning">📊 Weighted Stats</h4>
-            <ul class="list-group list-group-flush">
+            <div class="row g-3">
                 {% for k, v in weighted_stats.items() %}
-                <li class="list-group-item bg-dark text-light">
-                    <b>{{ k }}:</b> {{ v }}
-                </li>
+                <div class="col-md-3 col-sm-6">
+                    <div class="card bg-secondary text-light shadow-sm rounded-3 text-center p-3">
+                        <h6 class="fw-bold">{{ k }}</h6>
+                        <p class="fs-5">{{ "%.2f"|format(v) }}</p>
+                    </div>
+                </div>
                 {% endfor %}
-            </ul>
+            </div>
         </div>
         {% endif %}
 
@@ -70,7 +76,13 @@
                         {% for col, stats in ai_summary.items() %}
                         <tr>
                             <td><b>{{ col }}</b></td>
-                            <td>{{ stats.type }}</td>
+                            <td>
+                                {% if stats.type == 'numeric' %}
+                                    <span class="badge bg-primary">Numeric</span>
+                                {% else %}
+                                    <span class="badge bg-warning text-dark">Categorical</span>
+                                {% endif %}
+                            </td>
                             <td>{{ stats.mean if stats.type == 'numeric' else '-' }}</td>
                             <td>{{ stats.std if stats.type == 'numeric' else '-' }}</td>
                             <td>{{ stats.unique if stats.type == 'categorical' else '-' }}</td>
@@ -101,11 +113,15 @@
             </div>
         </div>
 
-        <!-- Visualize Button -->
+        <!-- Buttons -->
         <div class="mt-4 text-center" data-aos="zoom-in">
             <a href="{{ url_for('app_blueprint.visualize_page', filename=processed_filename) }}" 
-               class="btn btn-primary btn-lg">
+               class="btn btn-primary btn-lg me-2">
                📊 Visualize AI Insights
+            </a>
+            <a href="{{ url_for('static', filename='uploads/' ~ processed_filename) }}" 
+               class="btn btn-outline-light btn-lg">
+               ⬇️ Download Processed CSV
             </a>
         </div>
     </div>

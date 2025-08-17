@@ -17,15 +17,12 @@ from sklearn.linear_model import LinearRegression
 import os
 import plotly
 import google.generativeai as genai
+from backend.config import Config
 # ----------------- Config -----------------
 app_blueprint = Blueprint('app_blueprint', __name__)
-UPLOAD_FOLDER = os.path.join("backend", "static", "uploads")
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 PROCESSED_FOLDER = "processed"
-os.makedirs(PROCESSED_FOLDER, exist_ok=True)
-ALLOWED_EXTENSIONS = {'csv', 'xlsx', 'xls'}
-
-# ----------------- Helpers -----------------
+# ----------------- Helpers ---------------
+ALLOWED_EXTENSIONS = {"csv", "xlsx", "xls"}
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
@@ -95,19 +92,48 @@ def create_pdf_with_insights(df, workflow_log, weighted_stats, pdf_path):
 
 def ai_schema_suggestion(df):
     suggested_mapping = {}
+    suggested_rules = []
+
     for col in df.columns:
         clean_col = ''.join(filter(str.isalnum, col.lower()))
-        if "dob" in clean_col:
-            suggested_mapping[col] = "DateOfBirth"
+
+        # 🔹 Semantic rules
+        if "dob" in clean_col or "date" in clean_col:
+            suggested_mapping[col] = "Date"
+            suggested_rules.append({"column": col, "rule": "valid_date"})
         elif "name" in clean_col:
             suggested_mapping[col] = "FullName"
-        elif "sal" in clean_col or "income" in clean_col:
+            suggested_rules.append({"column": col, "rule": "not_empty"})
+        elif any(x in clean_col for x in ["sal", "income", "budget"]):
             suggested_mapping[col] = "Income"
+            suggested_rules.append({"column": col, "rule": ">= 0"})
         elif "age" in clean_col:
             suggested_mapping[col] = "Age"
+            suggested_rules.append({"column": col, "rule": "between", "min": 0, "max": 120})
         else:
-            suggested_mapping[col] = col
-    return suggested_mapping
+            # 🔹 Fallback to data-driven
+            if pd.api.types.is_numeric_dtype(df[col]):
+                suggested_mapping[col] = "Numeric"
+                suggested_rules.append({"column": col, "rule": "numeric"})
+            elif pd.api.types.is_datetime64_any_dtype(df[col]):
+                suggested_mapping[col] = "Date"
+                suggested_rules.append({"column": col, "rule": "valid_date"})
+            elif df[col].nunique() < 20:
+                suggested_mapping[col] = "Categorical"
+                suggested_rules.append({"column": col, "rule": "limited_categories"})
+            else:
+                suggested_mapping[col] = "Text"
+                suggested_rules.append({"column": col, "rule": "valid_text"})
+
+    return {
+        "schema_mapping": suggested_mapping,
+        "rules": suggested_rules,   # ✅ now structured, not just strings
+        "imputation_method": "mean",
+        "outlier_method": "iqr",
+        "weight_column": None,
+        "ai_impute": True
+    }
+
 
 
 # ----------------- Routes -----------------
@@ -178,7 +204,8 @@ def upload_page():
             return redirect(request.url)
         if file and allowed_file(file.filename):
             filename = secure_filename(file.filename)
-            file_path = os.path.join(UPLOAD_FOLDER, filename)
+            upload_folder = current_app.config["UPLOAD_FOLDER"]
+            file_path = os.path.join(upload_folder, filename)
             file.save(file_path)
 
             current_user.upload_count = (current_user.upload_count or 0) + 1
@@ -199,7 +226,8 @@ def upload_page():
                 session['uploaded_columns'] = []
                 session['ai_schema_suggest'] = {}
 
-            return redirect(url_for('app_blueprint.configure_processing', filename=filename))
+            return redirect(url_for('app_blueprint.configure', filename=filename))
+
         else:
             flash("Invalid file type. Only CSV/Excel allowed.", category='danger')
             return redirect(request.url)
@@ -207,91 +235,106 @@ def upload_page():
 
 
 # ----------------- Configure -----------------
-@app_blueprint.route('/configure/<filename>', methods=['GET', 'POST'])
-@login_required
-def configure_processing(filename):
-    file_path = os.path.join(UPLOAD_FOLDER, filename)
-    if filename.endswith('.csv'):
-        df = pd.read_csv(file_path)
-    else:
-        df = pd.read_excel(file_path)
+# ------------------ Routes ------------------
+@app_blueprint.route("/configure/<filename>", methods=["GET", "POST"])
+def configure(filename):
+    upload_folder = current_app.config["UPLOAD_FOLDER"]
+    file_path = os.path.join(upload_folder, filename)
 
-    columns = session.get('uploaded_columns', df.columns.tolist())
-    ai_suggest = session.get('ai_schema_suggest', {})
 
-    if request.method == 'POST':
+    # Load CSV columns
+    df = pd.read_csv(file_path)
+    columns = df.columns.tolist()
+
+    # ✅ Example AI suggestions (replace with your real AI call)
+    ai_suggest = {
+        "schema_mapping": {col: "Numeric" for col in columns},
+        "imputation_method": "mean",
+        "outlier_method": "zscore",
+        "rules": [{"column": col, "rule": "numeric"} for col in columns],
+        "weight_column": None,
+        "ai_impute": True
+    }
+
+    if request.method == "POST":
+        action = request.form.get("action")  # which button was pressed
+
+        # collect config selections
         config = {
-            "schema_mapping": {col: request.form.get(f"map_{col}") for col in columns},
+            "schema_mapping": {col: request.form.get(f"map_{col}", "") for col in columns},
             "imputation_method": request.form.get("imputation_method"),
             "outlier_method": request.form.get("outlier_method"),
             "rules": request.form.getlist("rules"),
             "weight_column": request.form.get("weight_column"),
-            "ai_impute": True if request.form.get("ai_impute") == "on" else False
+            "ai_impute": True if request.form.get("ai_impute") else False
         }
-        session['processing_config'] = config
 
-        # Apply simple schema mapping immediately
-        for old_col, new_col in config['schema_mapping'].items():
-            if old_col in df.columns and new_col:
-                df.rename(columns={old_col: new_col}, inplace=True)
+        # ✅ Handle visualize button
+        if action == "visualize":
+            # Do your visualization logic here
+            return render_template("visualize.html", filename=filename, config=config, df=df.to_html(classes="table table-bordered"))
 
-        # Save processed CSV consistently
-        processed_filename = f"{filename}_processed.csv"
-        processed_file_path = os.path.join(PROCESSED_FOLDER, processed_filename)
-        os.makedirs(PROCESSED_FOLDER, exist_ok=True)
-        df.to_csv(processed_file_path, index=False)
+        # ✅ Handle analyze button
+        elif action == "analyze":
+    
+            return redirect(url_for("app_blueprint.analyze", filename=filename))
 
-        # Store in session for visualization
-        session['data_file'] = processed_file_path
+        flash("Unknown action", "danger")
+        return redirect(url_for('app_blueprint.configure', filename=filename))
 
-        if request.form.get("action") == "visualize":
-            return redirect(url_for('app_blueprint.visualize_page', filename=processed_filename))
+
+    # GET → render configure page
+    return render_template(
+        "configure.html",
+        filename=filename,
+        columns=columns,
+        ai_suggest=ai_suggest
+    )
+
+def generate_ai_insights(df: pd.DataFrame):
+    ai_summary = {}
+
+    # Loop through each column
+    for col in df.columns:
+        col_data = df[col]
+        stats = {}
+
+        # Basic stats
+        stats["missing"] = int(col_data.isna().sum())
+        stats["type"] = "numeric" if pd.api.types.is_numeric_dtype(col_data) else "categorical"
+
+        if stats["type"] == "numeric":
+            stats["mean"] = round(col_data.mean(), 2)
+            stats["std"] = round(col_data.std(), 2)
+            stats["unique"] = "-"
+            stats["mode"] = "-"
         else:
-            return redirect(url_for('app_blueprint.analyze', filename=filename))
+            stats["mean"] = "-"
+            stats["std"] = "-"
+            stats["unique"] = col_data.nunique()
+            stats["mode"] = col_data.mode().iloc[0] if not col_data.mode().empty else "-"
 
-    return render_template('configure.html', filename=filename, columns=columns, ai_suggest=ai_suggest)
+        # Prepare AI prompt
+        prompt = f"""
+        You are a data analyst. Analyze the column **{col}**.
+        - Type: {stats['type']}
+        - Mean: {stats['mean']}
+        - Std: {stats['std']}
+        - Unique: {stats['unique']}
+        - Mode: {stats['mode']}
+        - Missing values: {stats['missing']}
 
+        Give a short, human-friendly insight (2-3 sentences).
+        """
 
+        model = genai.GenerativeModel("models/gemini-1.5-flash-latest")
+        response = model.generate_content(prompt)
 
-def generate_ai_insights(df):
-    insights_text = "Column-wise analysis:\n"
+        stats["insight"] = response.text.strip() if response and response.text else "No AI insight available."
 
-    for col in df.select_dtypes(include='number').columns:
-        col_data = df[col].fillna(df[col].mean())  # fill NaN with mean
+        ai_summary[col] = stats
 
-        X = col_data.index.values.reshape(-1, 1)
-        y = col_data.values
-
-        model = LinearRegression().fit(X, y)
-        coef = model.coef_[0]
-        trend = "increasing" if coef > 0 else "decreasing"
-
-        anomalies = col_data[
-            (col_data > col_data.mean() + 2*col_data.std()) |
-            (col_data < col_data.mean() - 2*col_data.std())
-        ].tolist()
-
-        insights_text += f"\nColumn: {col}\n"
-        insights_text += f"  • Trend: {trend} (slope={coef:.4f})\n"
-        insights_text += f"  • Mean: {col_data.mean():.2f}, Std: {col_data.std():.2f}\n"
-        insights_text += f"  • Anomalies: {anomalies if anomalies else 'None'}\n"
-
-    # Send to Gemini API (instead of OpenAI)
-    import google.generativeai as genai
-
-    prompt = f"""
-    You are a data analyst. Here is column-wise statistical and trend analysis.
-    Write a clear, human-friendly narrative summarizing the data.
-    Emphasize patterns, anomalies, and what they mean in practice.
-
-    Data Analysis:
-    {insights_text}
-    """
-
-    model = genai.GenerativeModel("models/gemini-1.5-flash-latest")
-    response = model.generate_content(prompt)
-
-    return response.text
+    return ai_summary
 
 
 
@@ -328,8 +371,8 @@ def visualize_page(filename):
         trend = "increasing" if model.coef_[0] > 0 else "decreasing"
 
         anomalies = col_data[
-            (col_data[col] > col_data[col].mean() + 2*col_data[col].std()) |
-            (col_data[col] < col_data[col].mean() - 2*col_data[col].std())
+            (col_data[col] > col_data[col].mean() + 2 * col_data[col].std()) |
+            (col_data[col] < col_data[col].mean() - 2 * col_data[col].std())
         ][col].tolist()
 
         insights[col] = {
@@ -342,18 +385,22 @@ def visualize_page(filename):
             fig.add_scatter(
                 x=anomaly_indices,
                 y=col_data.loc[anomaly_indices, col],
-                mode='markers',
-                marker=dict(color='red', size=10),
+                mode="markers",
+                marker=dict(color="red", size=10),
                 name=f"{col} anomalies"
             )
 
-    # 🔥 AI narrative
-    ai_narrative = generate_ai_insights(df)
+    # 🔥 AI narrative with safe fallback
+    try:
+        ai_narrative = generate_ai_insights(df)  # Calls Gemini
+    except Exception as e:
+        print(f"[WARN] Gemini quota exceeded or API error: {e}")
+        ai_narrative = build_ai_summary(df)  # Local fallback summary
 
     # Serialize Plotly figure
     graphJSON = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
 
-    # 🔥 Send full dataframe to frontend as JSON
+    # Send full dataframe to frontend as JSON
     data_json = df.to_json(orient="records")
 
     return render_template(
@@ -379,7 +426,8 @@ def analyze():
         flash("No file to analyze", category='danger')
         return redirect(url_for('app_blueprint.upload_page'))
 
-    file_path = os.path.join(UPLOAD_FOLDER, filename)
+    upload_folder = current_app.config["UPLOAD_FOLDER"]
+    file_path = os.path.join(upload_folder, filename)
     if not os.path.exists(file_path):
         flash("File not found.", category='danger')
         return redirect(url_for('app_blueprint.upload_page'))

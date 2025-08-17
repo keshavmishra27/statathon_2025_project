@@ -1,112 +1,98 @@
 {% extends "base.html" %}
-{% block title %}Configure Processing{% endblock %}
 
 {% block content %}
-<link href="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.css" rel="stylesheet">
+<div class="container mt-4">
+  <h2>⚙️ Configure Data Processing for {{ filename }}</h2>
+  <form method="POST">
 
-<div class="container my-5">
-    <div class="card shadow-lg p-4 bg-dark text-light rounded-4" data-aos="fade-up">
-        <h2 class="text-center mb-4 text-gradient">⚙ Schema Mapping & Processing Configuration</h2>
+    <!-- 🔹 Schema Mapping -->
+    <h4>Schema Mapping</h4>
+    <table class="table table-bordered table-dark table-sm">
+      <thead>
+        <tr>
+          <th>Original Column</th>
+          <th>AI Suggestion</th>
+          <th>Map To</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for col in columns %}
+        <tr>
+          <td>{{ col }}</td>
+          <td>{{ ai_suggest.get("schema_mapping", {}).get(col, "Unknown") }}</td>
+          <td>
+            <select name="map_{{ col }}" class="form-select">
+              <option value="">-- Keep as is --</option>
+              <option value="Date" {% if ai_suggest.get("schema_mapping", {}).get(col)=="Date" %}selected{% endif %}>Date</option>
+              <option value="Numeric" {% if ai_suggest.get("schema_mapping", {}).get(col)=="Numeric" %}selected{% endif %}>Numeric</option>
+              <option value="Categorical" {% if ai_suggest.get("schema_mapping", {}).get(col)=="Categorical" %}selected{% endif %}>Categorical</option>
+              <option value="Text" {% if ai_suggest.get("schema_mapping", {}).get(col)=="Text" %}selected{% endif %}>Text</option>
+              <option value="Income" {% if ai_suggest.get("schema_mapping", {}).get(col)=="Income" %}selected{% endif %}>Income</option>
+              <option value="Age" {% if ai_suggest.get("schema_mapping", {}).get(col)=="Age" %}selected{% endif %}>Age</option>
+              <option value="FullName" {% if ai_suggest.get("schema_mapping", {}).get(col)=="FullName" %}selected{% endif %}>FullName</option>
+              <option value="DateOfBirth" {% if ai_suggest.get("schema_mapping", {}).get(col)=="DateOfBirth" %}selected{% endif %}>DateOfBirth</option>
+            </select>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
 
-        <form method="POST">
-            <!-- Schema Mapping -->
-            <div class="mb-4">
-                <h5 class="fw-bold">🗂 Schema Mapping</h5>
-                {% for col in columns %}
-                <div class="row mb-2">
-                    <div class="col-md-5">
-                        <label class="form-label">{{ col }}</label>
-                    </div>
-                    <div class="col-md-7">
-                        <input type="text" class="form-control" name="map_{{ col }}" 
-                               value="{{ ai_suggest[col] if ai_suggest[col] else col }}">
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
+    <!-- 🔹 Imputation Method -->
+    <h4>Missing Value Imputation</h4>
+    <select name="imputation_method" class="form-select mb-3">
+      <option value="mean" {% if ai_suggest.get("imputation_method")=="mean" %}selected{% endif %}>Mean</option>
+      <option value="median" {% if ai_suggest.get("imputation_method")=="median" %}selected{% endif %}>Median</option>
+      <option value="mode" {% if ai_suggest.get("imputation_method")=="mode" %}selected{% endif %}>Mode</option>
+      <option value="knn" {% if ai_suggest.get("imputation_method")=="knn" %}selected{% endif %}>KNN Imputer</option>
+    </select>
+    <small class="text-muted">💡 AI suggested: {{ ai_suggest.get("imputation_method", "mean") }}</small>
 
-            <!-- Imputation -->
-            <div class="mb-4">
-                <h5 class="fw-bold">🔧 Missing Value Imputation</h5>
-                <select class="form-select" name="imputation_method">
-                    <option value="mean">Mean</option>
-                    <option value="median">Median</option>
-                    <option value="knn">KNN Imputer</option>
-                </select>
-                <div class="form-check mt-2">
-                    <input class="form-check-input" type="checkbox" name="ai_impute" id="ai_impute">
-                    <label class="form-check-label" for="ai_impute">Use AI-powered Imputation</label>
-                </div>
-            </div>
+    <!-- 🔹 Outlier Detection -->
+    <h4>Outlier Handling</h4>
+    <select name="outlier_method" class="form-select mb-3">
+      <option value="zscore" {% if ai_suggest.get("outlier_method")=="zscore" %}selected{% endif %}>Z-Score</option>
+      <option value="iqr" {% if ai_suggest.get("outlier_method")=="iqr" %}selected{% endif %}>IQR</option>
+      <option value="isolationforest" {% if ai_suggest.get("outlier_method")=="isolationforest" %}selected{% endif %}>Isolation Forest</option>
+      <option value="none" {% if ai_suggest.get("outlier_method")=="none" %}selected{% endif %}>None</option>
+    </select>
+    <small class="text-muted">💡 AI suggested: {{ ai_suggest.get("outlier_method", "none") }}</small>
 
-            <!-- Outlier Detection -->
-            <div class="mb-4">
-                <h5 class="fw-bold">📊 Outlier Detection</h5>
-                <select class="form-select" name="outlier_method">
-                    <option value="isolationforest">Isolation Forest</option>
-                    <option value="iqr">IQR Method</option>
-                </select>
-            </div>
+    <!-- 🔹 Business Rules -->
+    <h4>Custom Rules</h4>
+    {% if ai_suggest.get("rules") %}
+      <div class="mb-3">
+        {% for rule in ai_suggest.get("rules") %}
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="rules" value="{{ rule }}" id="rule_{{ loop.index }}" checked>
+            <label class="form-check-label" for="rule_{{ loop.index }}">{{ rule }}</label>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+    <textarea name="rules" class="form-control mb-3" placeholder="Add your own rules (comma separated)"></textarea>
+    <small class="text-muted">💡 AI suggested {{ ai_suggest.get("rules")|length }} rules above.</small>
 
-            <!-- Rules -->
-            <div class="mb-4">
-                <h5 class="fw-bold">📏 Validation Rules</h5>
-                <div class="form-check">
-                    <input class="form-check-input" type="checkbox" name="rules" value="age_limit" id="rule_age">
-                    <label class="form-check-label" for="rule_age">Age &lt; 120</label>
-                </div>
-                <div class="form-check">
-                    <input class="form-check-input" type="checkbox" name="rules" value="income_positive" id="rule_income">
-                    <label class="form-check-label" for="rule_income">Income &gt; 0</label>
-                </div>
-            </div>
+    <!-- 🔹 Weight Column -->
+    <h4>Weight Column (optional)</h4>
+    <select name="weight_column" class="form-select mb-3">
+      <option value="">-- None --</option>
+      {% for col in columns %}
+      <option value="{{ col }}" {% if ai_suggest.get("weight_column")==col %}selected{% endif %}>{{ col }}</option>
+      {% endfor %}
+    </select>
+    <small class="text-muted">💡 AI suggested: {{ ai_suggest.get("weight_column", "None") }}</small>
 
-            <!-- Weights -->
-            <div class="mb-4">
-                <h5 class="fw-bold">⚖ Weight Column</h5>
-                <select class="form-select" name="weight_column">
-                    <option value="">-- None --</option>
-                    {% for col in columns %}
-                    <option value="{{ col }}">{{ col }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-
-            <!-- Action Buttons -->
-            <div class="text-center">
-                <button type="submit" name="action" value="analyze" class="btn btn-primary btn-lg px-4 glow-btn" data-aos="zoom-in">
-                    🚀 Run Analysis
-                </button>
-                <button type="submit" name="action" value="visualize" class="btn btn-outline-light btn-lg px-4 ms-3 glow-btn" data-aos="zoom-in">
-                    📈 Visualize
-                </button>
-            </div>
-        </form>
+    <!-- 🔹 AI Imputation -->
+    <div class="form-check mb-3">
+      <input class="form-check-input" type="checkbox" name="ai_impute" id="ai_impute"
+        {% if ai_suggest.get("ai_impute") %}checked{% endif %}>
+      <label class="form-check-label" for="ai_impute">Enable AI-assisted Imputation</label>
     </div>
+
+    <!-- 🔹 Actions -->
+    <button type="submit" name="action" value="visualize" class="btn btn-primary">Visualize</button>
+    <button type="submit" name="action" value="analyze" class="btn btn-success">Analyze</button>
+  </form>
 </div>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.js"></script>
-<script>AOS.init({ duration: 1200, once: true });</script>
-
-<style>
-    body {
-        background: linear-gradient(135deg, #1e3a5f, #0d1b2a);
-        color: #fff;
-        font-family: 'Segoe UI', sans-serif;
-    }
-    .text-gradient {
-        background: linear-gradient(to right, #00c6ff, #0072ff);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-    }
-    .glow-btn {
-        border-radius: 12px;
-        box-shadow: 0 0 15px rgba(0, 123, 255, 0.7);
-        transition: 0.3s;
-    }
-    .glow-btn:hover {
-        box-shadow: 0 0 25px rgba(0, 123, 255, 1);
-        transform: scale(1.05);
-    }
-</style>
 {% endblock %}

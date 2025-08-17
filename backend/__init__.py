@@ -13,6 +13,15 @@ db = SQLAlchemy()
 login_manager = LoginManager()
 bcrypt = Bcrypt()
 
+from pathlib import Path
+from flask import Flask
+from flask_cors import CORS
+import os
+from dotenv import load_dotenv
+from backend import db, login_manager, bcrypt
+import google.generativeai as genai
+
+
 def create_app():
     # Load .env from project root (same as run.py)
     env_path = Path(__file__).resolve().parent.parent / ".env"
@@ -21,6 +30,14 @@ def create_app():
     app = Flask(__name__)
     app.config['SECRET_KEY'] = os.getenv("SECRET_KEY", "super_secret_123")
     app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv("DATABASE_URL", "sqlite:///yourdatabase.db")
+
+    # ✅ Add file handling config
+    app.config['UPLOAD_FOLDER'] = os.path.join(os.getcwd(), "uploads")
+    app.config['PROCESSED_FOLDER'] = os.path.join(os.getcwd(), "processed")
+
+    # Ensure folders exist
+    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+    os.makedirs(app.config['PROCESSED_FOLDER'], exist_ok=True)
 
     # Initialize extensions
     db.init_app(app)

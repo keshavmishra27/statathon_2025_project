@@ -12,7 +12,7 @@
         </p>
 
         <!-- Dropdowns for X and Y -->
-        <div class="mt-3 d-flex justify-content-center gap-3">
+        <div class="mt-3 d-flex flex-wrap justify-content-center gap-4">
             <div>
                 <label class="form-label text-warning">Select X-axis</label>
                 <select id="xDropdown" class="form-select bg-dark text-light border-warning"></select>
@@ -20,6 +20,7 @@
             <div>
                 <label class="form-label text-info">Select Y-axis</label>
                 <select id="yDropdown" class="form-select bg-dark text-light border-info" multiple></select>
+                <small class="text-muted">Ctrl+Click to select multiple</small>
             </div>
             <div class="align-self-end">
                 <button id="updateChart" class="btn btn-light">🔄 Update Chart</button>
@@ -29,7 +30,7 @@
         <!-- Interactive Chart -->
         <div class="mt-4" data-aos="zoom-in">
             <h4 class="fw-bold text-warning">Interactive Chart</h4>
-            <div id="chart"></div>
+            <div id="chart" style="min-height:500px;"></div>
         </div>
 
         <!-- Raw Insights -->
@@ -38,7 +39,8 @@
             <ul class="list-group list-group-flush">
                 {% for col, detail in insights.items() %}
                 <li class="list-group-item bg-dark text-light">
-                    <b>{{ col }}</b> → Trend: <span class="text-info">{{ detail.trend }}</span>,
+                    <b>{{ col }}</b> → 
+                    Trend: <span class="text-info">{{ detail.trend }}</span>,
                     Anomalies:
                     {% if detail.anomalies %}
                         <span class="text-danger">{{ detail.anomalies }}</span>
@@ -53,8 +55,13 @@
         <!-- AI Narrative -->
         <div class="mt-4" data-aos="fade-left">
             <h4 class="fw-bold text-success">🤖 AI Narrative</h4>
-            <div class="card bg-secondary text-light p-3 rounded-3">
-                <p>{{ ai_narrative }}</p>
+            <button class="btn btn-outline-success mb-2" type="button" data-bs-toggle="collapse" data-bs-target="#aiNarrative" aria-expanded="false" aria-controls="aiNarrative">
+                💡 View Narrative
+            </button>
+            <div class="collapse" id="aiNarrative">
+                <div class="card bg-secondary text-light p-3 rounded-3">
+                    <p>{{ ai_narrative }}</p>
+                </div>
             </div>
         </div>
 
@@ -81,10 +88,14 @@
 AOS.init({ duration: 1200, once: true });
 
 // Initial chart from backend
-var graph = JSON.parse('{{ graphJSON | safe }}');
-Plotly.newPlot('chart', graph.data, graph.layout);
+try {
+    var graph = JSON.parse('{{ graphJSON | safe }}');
+    Plotly.newPlot('chart', graph.data, graph.layout);
+} catch (e) {
+    document.getElementById('chart').innerHTML = "<p class='text-danger'>⚠ Unable to load initial chart.</p>";
+}
 
-// Full dataframe sent from Flask
+// Full dataframe
 var df = {{ data_json | safe }};
 var columns = {{ all_columns | tojson }};
 
@@ -93,26 +104,17 @@ var xDropdown = document.getElementById("xDropdown");
 var yDropdown = document.getElementById("yDropdown");
 
 columns.forEach(col => {
-    let optionX = document.createElement("option");
-    optionX.value = col;
-    optionX.text = col;
-    xDropdown.appendChild(optionX);
-
-    let optionY = document.createElement("option");
-    optionY.value = col;
-    optionY.text = col;
-    yDropdown.appendChild(optionY);
+    let optionX = new Option(col, col);
+    let optionY = new Option(col, col);
+    xDropdown.add(optionX);
+    yDropdown.add(optionY);
 });
 
-// Default selections
-if (columns.length > 0) {
-    xDropdown.value = columns[0]; // first col as X
-}
-if (columns.length > 1) {
-    yDropdown.options[1].selected = true; // select second col as Y
-}
+// Defaults
+if (columns.length > 0) xDropdown.value = columns[0];
+if (columns.length > 1) yDropdown.options[1].selected = true;
 
-// Update chart on button click
+// Update chart
 document.getElementById("updateChart").addEventListener("click", function () {
     let xCol = xDropdown.value;
     let yCols = Array.from(yDropdown.selectedOptions).map(o => o.value);
@@ -122,16 +124,12 @@ document.getElementById("updateChart").addEventListener("click", function () {
         return;
     }
 
-    let traces = [];
-    yCols.forEach(yCol => {
-        let trace = {
-            x: df.map(row => row[xCol]),
-            y: df.map(row => row[yCol]),
-            mode: 'lines+markers',
-            name: yCol
-        };
-        traces.push(trace);
-    });
+    let traces = yCols.map(yCol => ({
+        x: df.map(r => r[xCol]),
+        y: df.map(r => r[yCol]),
+        mode: 'lines+markers',
+        name: yCol
+    }));
 
     let layout = {
         title: "Custom Visualization",
