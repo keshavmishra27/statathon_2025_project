@@ -32,42 +32,78 @@
             <div id="chart"></div>
         </div>
 
-        <!-- Raw Insights -->
-        <div class="mt-4" data-aos="fade-right">
-            <h4 class="fw-bold text-info">📊 Column-wise Insights</h4>
+        <!-- Dataset Summary -->
+        {% if dataset_summary %}
+        <div class="mt-4" data-aos="fade-up">
+            <h4 class="fw-bold text-success">📊 Dataset Summary</h4>
             <ul class="list-group list-group-flush">
-                {% for col, detail in insights.items() %}
-                <li class="list-group-item bg-dark text-light">
-                    <b>{{ col }}</b> → Trend: <span class="text-info">{{ detail.trend }}</span>,
-                    Anomalies:
-                    {% if detail.anomalies %}
-                        <span class="text-danger">{{ detail.anomalies }}</span>
-                    {% else %}
-                        None
-                    {% endif %}
-                </li>
-                {% endfor %}
+                <li class="list-group-item bg-dark text-light"><b>Rows:</b> {{ dataset_summary.num_rows }}</li>
+                <li class="list-group-item bg-dark text-light"><b>Columns:</b> {{ dataset_summary.num_cols }}</li>
+                <li class="list-group-item bg-dark text-light"><b>Numeric Columns:</b> {{ dataset_summary.num_numeric }}</li>
+                <li class="list-group-item bg-dark text-light"><b>Categorical Columns:</b> {{ dataset_summary.num_categorical }}</li>
+                <li class="list-group-item bg-dark text-light"><b>Total Missing Values:</b> {{ dataset_summary.missing_total }}</li>
             </ul>
-        </div>
-
-        <!-- AI Narrative with collapse -->
-        <div class="mt-4" data-aos="fade-left">
-            <h4 class="fw-bold text-success">🤖 AI Narrative</h4>
-            <button class="btn btn-outline-success mb-2" type="button" 
-                    data-bs-toggle="collapse" data-bs-target="#aiNarrative" 
-                    aria-expanded="false" aria-controls="aiNarrative">
-                💡 View Narrative
-            </button>
-            <div class="collapse" id="aiNarrative">
-                <div class="card bg-secondary text-light p-3 rounded-3">
-                    <p>{{ ai_narrative }}</p>
-                </div>
+            <div class="alert alert-info mt-3" role="alert">
+                💡 <b>AI Insight:</b> {{ dataset_summary.insight }}
             </div>
         </div>
+        {% endif %}
+
+        <!-- Column-wise AI Insights -->
+        {% if ai_summary %}
+        <div class="mt-4" data-aos="fade-right">
+            <h4 class="fw-bold text-info">📋 Column-wise AI Insights</h4>
+            <div class="table-responsive">
+                <table class="table table-striped table-dark table-bordered align-middle">
+                    <thead>
+                        <tr>
+                            <th>Column</th>
+                            <th>Type</th>
+                            <th>Mean</th>
+                            <th>Std</th>
+                            <th>Unique</th>
+                            <th>Mode</th>
+                            <th>Missing</th>
+                            <th>AI Insight</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for col, stats in ai_summary.items() %}
+                        <tr>
+                            <td><b>{{ col }}</b></td>
+                            <td>
+                                {% if stats.type == 'numeric' %}
+                                    <span class="badge bg-primary">Numeric</span>
+                                {% else %}
+                                    <span class="badge bg-warning text-dark">Categorical</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ stats.mean if stats.type == 'numeric' else '-' }}</td>
+                            <td>{{ stats.std if stats.type == 'numeric' else '-' }}</td>
+                            <td>{{ stats.unique if stats.type == 'categorical' else '-' }}</td>
+                            <td>{{ stats.mode if stats.type == 'categorical' else '-' }}</td>
+                            <td>{{ stats.missing }}</td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-info" type="button" data-bs-toggle="collapse" data-bs-target="#insight{{ loop.index }}" aria-expanded="false" aria-controls="insight{{ loop.index }}">
+                                    💡 View Insight
+                                </button>
+                                <div class="collapse mt-2" id="insight{{ loop.index }}">
+                                    <div class="card card-body bg-secondary text-light border-0">
+                                        {{ stats.insight }}
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
 
         <!-- Data Preview -->
         <div class="mt-4" data-aos="fade-up">
-            <h4 class="fw-bold text-primary">📋 Data Preview</h4>
+            <h4 class="fw-bold text-primary">📂 Data Preview</h4>
             <div class="table-responsive">
                 {{ table_html|safe }}
             </div>
@@ -114,13 +150,13 @@ columns.forEach(col => {
 
 // Default selections
 if (columns.length > 0) {
-    xDropdown.value = columns[0]; // first col as X
+    xDropdown.value = columns[0];
 }
 if (columns.length > 1) {
-    yDropdown.options[1].selected = true; // select second col as Y
+    yDropdown.options[1].selected = true;
 }
 
-// Update chart on button click
+// Update chart
 document.getElementById("updateChart").addEventListener("click", function () {
     let xCol = xDropdown.value;
     let yCols = Array.from(yDropdown.selectedOptions).map(o => o.value);

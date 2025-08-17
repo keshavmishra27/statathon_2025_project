@@ -16,8 +16,23 @@ import json
 from sklearn.linear_model import LinearRegression
 import os
 import plotly
-import google.generativeai as genai
 from backend.config import Config
+from flask import send_file
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.pagesizes import A4
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib import colors
+import io
+from flask import send_file, current_app
+from reportlab.lib.pagesizes import A4
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image, PageBreak
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib import colors
+import os
+from langchain_ollama import OllamaLLM
+
 # ----------------- Config -----------------
 app_blueprint = Blueprint('app_blueprint', __name__)
 PROCESSED_FOLDER = "processed"
@@ -291,51 +306,26 @@ def configure(filename):
         ai_suggest=ai_suggest
     )
 
+llm = OllamaLLM(model="tinyllama")
+from langchain_ollama import OllamaLLM
+
+# Initialize Ollama LLM once
+llm = OllamaLLM(model="tinyllama")
+
 def generate_ai_insights(df: pd.DataFrame):
-    ai_summary = {}
-
-    # Loop through each column
-    for col in df.columns:
-        col_data = df[col]
-        stats = {}
-
-        # Basic stats
-        stats["missing"] = int(col_data.isna().sum())
-        stats["type"] = "numeric" if pd.api.types.is_numeric_dtype(col_data) else "categorical"
-
-        if stats["type"] == "numeric":
-            stats["mean"] = round(col_data.mean(), 2)
-            stats["std"] = round(col_data.std(), 2)
-            stats["unique"] = "-"
-            stats["mode"] = "-"
-        else:
-            stats["mean"] = "-"
-            stats["std"] = "-"
-            stats["unique"] = col_data.nunique()
-            stats["mode"] = col_data.mode().iloc[0] if not col_data.mode().empty else "-"
-
-        # Prepare AI prompt
+    """Generate AI insights using TinyLlama"""
+    try:
         prompt = f"""
-        You are a data analyst. Analyze the column **{col}**.
-        - Type: {stats['type']}
-        - Mean: {stats['mean']}
-        - Std: {stats['std']}
-        - Unique: {stats['unique']}
-        - Mode: {stats['mode']}
-        - Missing values: {stats['missing']}
+        You are a data analyst. Summarize the dataset in a clear, human-friendly way.
+        Mention trends, anomalies, and structure.
 
-        Give a short, human-friendly insight (2-3 sentences).
+        Dataset preview:
+        {df.head(20).to_string()}
         """
-
-        model = genai.GenerativeModel("models/gemini-1.5-flash-latest")
-        response = model.generate_content(prompt)
-
-        stats["insight"] = response.text.strip() if response and response.text else "No AI insight available."
-
-        ai_summary[col] = stats
-
-    return ai_summary
-
+        response = llm.invoke(prompt)
+        return response.strip()
+    except Exception as e:
+        return f"[TinyLlama error: {e}]"
 
 
 @app_blueprint.route('/visualize/<filename>')
@@ -391,11 +381,13 @@ def visualize_page(filename):
             )
 
     # 🔥 AI narrative with safe fallback
-    try:
-        ai_narrative = generate_ai_insights(df)  # Calls Gemini
-    except Exception as e:
-        print(f"[WARN] Gemini quota exceeded or API error: {e}")
-        ai_narrative = build_ai_summary(df)  # Local fallback summary
+    # 🔥 AI narrative using TinyLlama
+    ai_narrative = generate_ai_insights(df)
+
+    # If TinyLlama fails for some reason, fall back to local summary
+    if not ai_narrative or "TinyLlama error" in ai_narrative:
+        ai_narrative = build_ai_summary(df)
+
 
     # Serialize Plotly figure
     graphJSON = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
@@ -414,9 +406,6 @@ def visualize_page(filename):
         data_json=data_json
     )
 
-
-
-# ----------------- AI-Enhanced Analyze -----------------
 # ----------------- AI-Enhanced Analyze -----------------
 @app_blueprint.route('/analyze', methods=['GET', 'POST'])
 @login_required
@@ -519,19 +508,18 @@ def run_full_pipeline(file_path, filename):
         f"Columns detected: {list(df.columns)}"
     ]
 
-    weighted_stats = {}
-    for col in df.select_dtypes(include='number').columns:
-        weighted_stats[col] = float(df[col].mean())
+    weighted_stats = {col: float(df[col].mean()) for col in df.select_dtypes(include='number').columns}
 
     # Dataset + Column-level AI summary
     dataset_summary, ai_summary = build_ai_summary(df)
 
+    # 🔥 Add Gemini AI summary
+    ai_summary_text = generate_ai_insights(df)
+
     table_html = df.head(10).to_html(classes="table table-dark table-striped", index=False)
     processed_filename = f"processed_{secure_filename(filename)}"
 
-    # ✅ Ensure uploads folder exists
     os.makedirs("uploads", exist_ok=True)
-
     processed_path = os.path.join("uploads", processed_filename)
     df.to_csv(processed_path, index=False)
 
@@ -540,12 +528,12 @@ def run_full_pipeline(file_path, filename):
         filename=filename,
         workflow_log=workflow_log,
         weighted_stats=weighted_stats,
-        dataset_summary=dataset_summary,   # ✅ send dataset_summary
+        dataset_summary=dataset_summary,
         ai_summary=ai_summary,
+        ai_summary_text=ai_summary_text,   # ✅ new
         table_html=table_html,
         processed_filename=processed_filename
     )
-
 
 
 def make_columns_unique(df):
@@ -567,8 +555,160 @@ def leaderboard_page():
     return render_template('leaderboard.html', users=users, current_rank=current_rank)
 
 
-@app_blueprint.route('/download/<filename>')
+# 🔹 Upload file
+@app_blueprint.route("/upload", methods=["GET", "POST"])
+def upload_file():
+    if request.method == "POST":
+        if "file" not in request.files:
+            flash("No file selected", "danger")
+            return redirect(request.url)
+
+        file = request.files["file"]
+        if file.filename == "":
+            flash("No file selected", "danger")
+            return redirect(request.url)
+
+        filename = secure_filename(file.filename)
+        file_path = os.path.join(current_app.config["UPLOAD_FOLDER"], filename)
+        file.save(file_path)
+
+        session["uploaded_file"] = filename
+        return redirect(url_for("app_blueprint.analyze", filename=filename))
+
+    return render_template("upload.html")
+
+
+@app_blueprint.route("/download_pdf/<filename>")
 def download_pdf(filename):
-    file_path = f'reports/{filename}'  # adjust path
-    return send_file(file_path, as_attachment=True)
+    upload_folder = current_app.config['UPLOAD_FOLDER']
+    processed_folder = current_app.config['PROCESSED_FOLDER']
+    plots_dir = os.path.join(processed_folder, "plots")
+    os.makedirs(plots_dir, exist_ok=True)
+
+    file_path = os.path.join(upload_folder, filename)
+    if not os.path.exists(file_path):
+        flash("File not found.", "danger")
+        return redirect(url_for("app_blueprint.upload_page"))
+
+    # 🔹 Re-run pipeline
+    df = pd.read_csv(file_path)
+    workflow_log = [
+        f"File '{filename}' successfully loaded.",
+        f"DataFrame shape: {df.shape}",
+        f"Columns detected: {list(df.columns)}"
+    ]
+    weighted_stats = {col: float(df[col].mean()) for col in df.select_dtypes(include='number').columns}
+    dataset_summary, ai_summary = build_ai_summary(df)
+    ai_summary_text = generate_ai_insights(df)
+
+    # 🔹 Generate PDF path
+    pdf_path = os.path.join(processed_folder, f"{filename}_report.pdf")
+    doc = SimpleDocTemplate(pdf_path, pagesize=A4)
+    styles = getSampleStyleSheet()
+    story = []
+
+    # ------------------- TITLE PAGE -------------------
+    title_style = ParagraphStyle("title", parent=styles["Title"], alignment=1, textColor=colors.HexColor("#00c6ff"))
+    story.append(Paragraph("📊 AI-Powered Data Report", title_style))
+    story.append(Spacer(1, 30))
+    story.append(Paragraph(f"Dataset: <b>{filename}</b>", styles["Normal"]))
+    story.append(PageBreak())
+
+    # ------------------- DATASET OVERVIEW -------------------
+    story.append(Paragraph("📂 Dataset Overview", styles["Heading2"]))
+    data = [
+        ["Rows", dataset_summary["num_rows"]],
+        ["Columns", dataset_summary["num_cols"]],
+        ["Numeric Columns", dataset_summary["num_numeric"]],
+        ["Categorical Columns", dataset_summary["num_categorical"]],
+        ["Missing Values", dataset_summary["missing_total"]],
+    ]
+    table = Table(data, colWidths=[200, 200])
+    table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.grey),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
+        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.black),
+    ]))
+    story.append(table)
+    story.append(Spacer(1, 20))
+    story.append(Paragraph(f"💡 AI Insight: {dataset_summary['insight']}", styles["Italic"]))
+    story.append(PageBreak())
+
+    # ------------------- WORKFLOW LOG -------------------
+    story.append(Paragraph("📝 Workflow Log", styles["Heading2"]))
+    for step in workflow_log:
+        story.append(Paragraph(f"• {step}", styles["Normal"]))
+    story.append(PageBreak())
+
+    # ------------------- AI NARRATIVE -------------------
+    story.append(Paragraph("🤖 AI Narrative Insights", styles["Heading2"]))
+    story.append(Paragraph(ai_summary_text, styles["Normal"]))
+    story.append(PageBreak())
+
+    # ------------------- WEIGHTED STATS -------------------
+    story.append(Paragraph("📈 Weighted Statistics", styles["Heading2"]))
+    stats_data = [[k, f"{v:.2f}"] for k, v in weighted_stats.items()]
+    stats_table = Table([["Metric", "Value"]] + stats_data)
+    stats_table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.darkblue),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
+        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.black),
+    ]))
+    story.append(stats_table)
+    story.append(PageBreak())
+
+    # ------------------- VISUALIZATIONS -------------------
+    numeric_cols = df.select_dtypes(include="number").columns
+
+    if len(numeric_cols) > 0:
+        story.append(Paragraph("📊 Visual Diagnostics", styles["Heading2"]))
+
+        # Histogram
+        plt.figure(figsize=(8, 6))
+        df[numeric_cols].hist(bins=20, figsize=(10, 8))
+        plt.tight_layout()
+        hist_path = os.path.join(plots_dir, f"{filename}_hist.png")
+        plt.savefig(hist_path)
+        plt.close()
+        story.append(Paragraph("Distribution of Numeric Columns", styles["Heading3"]))
+        story.append(Image(hist_path, width=400, height=300))
+        story.append(Spacer(1, 15))
+
+        # Boxplot
+        plt.figure(figsize=(10, 6))
+        df[numeric_cols].plot(kind="box")
+        plt.title("Boxplot for Outlier Detection")
+        box_path = os.path.join(plots_dir, f"{filename}_box.png")
+        plt.savefig(box_path)
+        plt.close()
+        story.append(Paragraph("Boxplot for Outlier Detection", styles["Heading3"]))
+        story.append(Image(box_path, width=400, height=300))
+        story.append(Spacer(1, 15))
+
+        # Correlation Heatmap
+        plt.figure(figsize=(8, 6))
+        corr = df[numeric_cols].corr()
+        plt.imshow(corr, cmap="coolwarm", interpolation="nearest")
+        plt.colorbar()
+        plt.xticks(range(len(corr.columns)), corr.columns, rotation=90)
+        plt.yticks(range(len(corr.columns)), corr.columns)
+        plt.title("Correlation Heatmap")
+        heatmap_path = os.path.join(plots_dir, f"{filename}_corr.png")
+        plt.savefig(heatmap_path, bbox_inches="tight")
+        plt.close()
+        story.append(Paragraph("Correlation Heatmap", styles["Heading3"]))
+        story.append(Image(heatmap_path, width=400, height=300))
+        story.append(Spacer(1, 15))
+
+        story.append(PageBreak())
+
+    # ------------------- BUILD PDF -------------------
+    doc.build(story)
+
+    return send_file(pdf_path, as_attachment=True)
+
+
+
 

@@ -55,6 +55,16 @@
         </div>
         {% endif %}
 
+        <!-- AI Narrative -->
+        {% if ai_summary_text %}
+        <div class="mt-4" data-aos="fade-up">
+            <h4 class="fw-bold text-primary">🤖 AI Narrative</h4>
+            <div class="alert alert-secondary">
+                {{ ai_summary_text }}
+            </div>
+        </div>
+        {% endif %}
+
         <!-- AI Summary Table -->
         <div class="mt-4" data-aos="fade-up">
             <h4 class="fw-bold text-primary">📋 AI Column Insights</h4>
@@ -119,10 +129,11 @@
                class="btn btn-primary btn-lg me-2">
                📊 Visualize AI Insights
             </a>
-            <a href="{{ url_for('static', filename='uploads/' ~ processed_filename) }}" 
-               class="btn btn-outline-light btn-lg">
-               ⬇️ Download Processed CSV
+            <a href="{{ url_for('app_blueprint.download_pdf', filename=filename) }}" 
+                class="btn btn-primary">
+                    📄 Download PDF Report
             </a>
+
         </div>
     </div>
 </div>
