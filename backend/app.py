@@ -590,28 +590,60 @@ def download_pdf(filename):
         flash("File not found.", "danger")
         return redirect(url_for("app_blueprint.upload_page"))
 
-    # 🔹 Re-run pipeline
+    # 🔹 Load dataset
     df = pd.read_csv(file_path)
+    dataset_summary, ai_summary = build_ai_summary(df)
+
+    # 🔹 AI narrative (TinyLlama / fallback)
+    try:
+        ai_summary_text = generate_ai_insights(df)
+        if not ai_summary_text or "error" in ai_summary_text.lower():
+            raise ValueError("AI summary invalid")
+    except Exception as e:
+        print(f"[WARN] AI model failed: {e}")
+        ai_summary_text = (
+            "This dataset contains "
+            f"{dataset_summary['num_rows']} rows and {dataset_summary['num_cols']} columns. "
+            f"There are {dataset_summary['num_numeric']} numeric columns, "
+            f"{dataset_summary['num_categorical']} categorical columns, "
+            f"and {dataset_summary['missing_total']} missing values. "
+            "Overall, the dataset is structured and ready for statistical analysis."
+        )
+
+
+    # 🔹 Workflow + stats
     workflow_log = [
         f"File '{filename}' successfully loaded.",
         f"DataFrame shape: {df.shape}",
         f"Columns detected: {list(df.columns)}"
     ]
     weighted_stats = {col: float(df[col].mean()) for col in df.select_dtypes(include='number').columns}
-    dataset_summary, ai_summary = build_ai_summary(df)
-    ai_summary_text = generate_ai_insights(df)
 
-    # 🔹 Generate PDF path
+    # 🔹 PDF path
     pdf_path = os.path.join(processed_folder, f"{filename}_report.pdf")
     doc = SimpleDocTemplate(pdf_path, pagesize=A4)
     styles = getSampleStyleSheet()
     story = []
 
-    # ------------------- TITLE PAGE -------------------
-    title_style = ParagraphStyle("title", parent=styles["Title"], alignment=1, textColor=colors.HexColor("#00c6ff"))
-    story.append(Paragraph("📊 AI-Powered Data Report", title_style))
-    story.append(Spacer(1, 30))
-    story.append(Paragraph(f"Dataset: <b>{filename}</b>", styles["Normal"]))
+# ------------------- PAGE 1: EXECUTIVE SUMMARY -------------------
+    story.append(Paragraph("📄 Executive AI Summary", styles["Title"]))
+    story.append(Spacer(1, 20))
+    story.append(Paragraph(f"<b>Dataset:</b> {filename}", styles["Heading3"]))
+    story.append(Spacer(1, 12))
+
+    summary_points = [
+    f"Shape: {dataset_summary['num_rows']} rows × {dataset_summary['num_cols']} columns",
+    f"Numeric Columns: {dataset_summary['num_numeric']}",
+    f"Categorical Columns: {dataset_summary['num_categorical']}",
+    f"Missing Values: {dataset_summary['missing_total']}",
+]
+    for point in summary_points:
+        story.append(Paragraph("• " + point, styles["Normal"]))
+
+    story.append(Spacer(1, 20))
+    story.append(Paragraph("🤖 AI Narrative", styles["Heading2"]))
+    story.append(Spacer(1, 10))
+    story.append(Paragraph(ai_summary_text, styles["Normal"]))
     story.append(PageBreak())
 
     # ------------------- DATASET OVERVIEW -------------------
@@ -631,19 +663,12 @@ def download_pdf(filename):
         ("GRID", (0, 0), (-1, -1), 0.5, colors.black),
     ]))
     story.append(table)
-    story.append(Spacer(1, 20))
-    story.append(Paragraph(f"💡 AI Insight: {dataset_summary['insight']}", styles["Italic"]))
     story.append(PageBreak())
 
     # ------------------- WORKFLOW LOG -------------------
     story.append(Paragraph("📝 Workflow Log", styles["Heading2"]))
     for step in workflow_log:
         story.append(Paragraph(f"• {step}", styles["Normal"]))
-    story.append(PageBreak())
-
-    # ------------------- AI NARRATIVE -------------------
-    story.append(Paragraph("🤖 AI Narrative Insights", styles["Heading2"]))
-    story.append(Paragraph(ai_summary_text, styles["Normal"]))
     story.append(PageBreak())
 
     # ------------------- WEIGHTED STATS -------------------
@@ -661,7 +686,6 @@ def download_pdf(filename):
 
     # ------------------- VISUALIZATIONS -------------------
     numeric_cols = df.select_dtypes(include="number").columns
-
     if len(numeric_cols) > 0:
         story.append(Paragraph("📊 Visual Diagnostics", styles["Heading2"]))
 
@@ -701,13 +725,14 @@ def download_pdf(filename):
         story.append(Paragraph("Correlation Heatmap", styles["Heading3"]))
         story.append(Image(heatmap_path, width=400, height=300))
         story.append(Spacer(1, 15))
-
         story.append(PageBreak())
 
     # ------------------- BUILD PDF -------------------
     doc.build(story)
-
     return send_file(pdf_path, as_attachment=True)
+
+
+
 
 
 
